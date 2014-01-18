@@ -8,5 +8,8 @@ class SatMapReduceMapper extends Mapper[Object, Text, Text, NullWritable ]{
 
   def map(key: Nothing, value: Nothing, context: Nothing) {
 
+    // doing some testing on folding reatures:
+
+
   }
 }

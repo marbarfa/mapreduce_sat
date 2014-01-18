@@ -19,11 +19,11 @@ class SatMapReduceMain extends Configured with Tool{
    * @return
    */
   def run(args: Array[String]): Int = {
-    val job: Job = new Job(getConf, classOf[BloomFilteringMain].getSimpleName)
-    job.setJarByClass(classOf[BloomFilteringMain])
+    val job: Job = new Job(getConf, classOf[SatMapReduceMain].getSimpleName)
+    job.setJarByClass(classOf[SatMapReduceMain])
     job.setOutputKeyClass(classOf[Text])
     job.setOutputValueClass(classOf[NullWritable])
-    job.setMapperClass(classOf[BloomFilteringMapper])
+    job.setMapperClass(classOf[SatMapReduceMapper])
     job.setNumReduceTasks(0)
     FileInputFormat.setInputPaths(job, new Path(args(0)))
     FileOutputFormat.setOutputPath(job, new Path(args(1)))
