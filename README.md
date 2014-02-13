@@ -40,3 +40,7 @@ The search tree would be something like the following, for this simple example:
                                       |
                    |           |             |            |
                  ||||        ||||          ||||         ||||
+
+
+
+Sat solver: http://home.mis.u-picardie.fr/~dequen/sat/
