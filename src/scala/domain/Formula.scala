@@ -7,4 +7,15 @@ class Formula {
 
   var clauses : List[Clause] = _
 
+  /**
+   * @return true if the formula is satisfiable
+   */
+  def isSatisfasiable() : Boolean = {
+    var res = true
+    for (c <- clauses){
+      res = res && c.isSatisfasiable()
+    }
+    return res
+  }
+
 }
