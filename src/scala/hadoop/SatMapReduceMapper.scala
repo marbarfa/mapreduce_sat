@@ -1,12 +1,7 @@
 package scala.hadoop
 
-import java.io.{IOException, DataInputStream}
-import java.net.URI
-import org.apache.hadoop.filecache.DistributedCache
-import org.apache.hadoop.fs.{Path, FileSystem}
 import org.apache.hadoop.io.{Text, NullWritable}
 import org.apache.hadoop.mapreduce.Mapper
-import org.apache.hadoop.util.bloom.BloomFilter
 
 /**
  * Created by marbarfa on 1/13/14.

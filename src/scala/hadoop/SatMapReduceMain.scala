@@ -1,10 +1,9 @@
 package scala.hadoop
 
 import org.apache.hadoop.conf.Configured
-import org.apache.hadoop.filecache.DistributedCache
-import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.{NullWritable, Text}
-import org.apache.hadoop.mapreduce.{InputFormat, Job}
+import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.mapreduce.lib.input.{NLineInputFormat, FileInputFormat}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.hadoop.util.Tool
@@ -23,7 +22,7 @@ class SatMapReduceMain extends Configured with Tool {
    * @return
    */
   def run(args: Array[String]): Int = {
-    val job: Job = new Job(getConf, classOf[SatMapReduceMain].getSimpleName)
+    val job: Job = new Job(getConf, classOf[SatMapReduceMain].)
 
     job.setJarByClass(classOf[SatMapReduceMain])
     job.setMapperClass(classOf[SatMapReduceMapper])
