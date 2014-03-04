@@ -1,7 +1,7 @@
 package scala.utils
 
-import scala.domain.{Variable, Clause, Formula}
 import java.io.File
+import scala.domain.{Variable, Clause, Formula}
 import scala.io.Source
 
 /**
@@ -46,7 +46,8 @@ object SatReader extends ISatReader {
         formula.clauses = clause :: formula.clauses
       }
     }
-
+    formula.n = numberOfVars;
+    formula.m = clauses;
     return formula;
   }
 }

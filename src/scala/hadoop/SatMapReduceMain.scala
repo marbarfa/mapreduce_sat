@@ -1,5 +1,6 @@
 package scala.hadoop
 
+import java.enums.EnumSatJobType
 import org.apache.hadoop.conf.{Configuration, Configured}
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.Text
@@ -7,8 +8,9 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.mapreduce.lib.input.{NLineInputFormat, FileInputFormat}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.hadoop.util.{ToolRunner, Tool}
-import java.enums.EnumSatJobType
-import scala.common.SatMapReduceConstants
+import scala.common.{SatMapReduceHelper, SatMapReduceConstants}
+import scala.domain.Variable
+import scala.utils.{CacheHelper, SatReader}
 
 /**
  * Created by marbarfa on 1/13/14.
@@ -29,15 +31,15 @@ class SatMapReduceMain extends Configured with Tool {
     job.setMapperClass(classOf[SatMapReduceMapper])
 
     //retrieve problem partition file
-    if (args.size != 4){
+    if (args.size != 4) {
       println("Wrong number of inputs. The app needs 4 parameters: \n" +
         "job_type input_path output_path with:\n" +
         "job_type : {init|rec}\n" +
         "input_path : where input files are located.\n" +
         "output_path: where output files will be saved\n")
-    }else{
+    } else {
       var jobType = EnumSatJobType.valueOf(args(0))
-      var inputPath  = args(1);
+      var inputPath = args(1);
       var outputPath = args(2)
 
       job.setOutputKeyClass(classOf[Text])
@@ -49,15 +51,21 @@ class SatMapReduceMain extends Configured with Tool {
       FileInputFormat.setInputPaths(job, new Path(SatMapReduceConstants.sat_tmp_folder_input))
       FileOutputFormat.setOutputPath(job, new Path(SatMapReduceConstants.sat_tmp_folder_output))
 
-      //start mapReduce.
+      if (EnumSatJobType.initial_configuration == jobType) {
+        var formula = SatReader.read3SatInstance(inputPath);
+        var literals: List[Variable] = SatMapReduceHelper.generateProblemSplit(List[Variable](), formula.n, SatMapReduceConstants.variable_literals_amount)
 
+        //generate problem split -> first choose which literals use as variables and how many.
+        var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), formula.n, SatMapReduceConstants.variable_literals_amount);
+        //save problem definition in the input path to be used as input in the MapReduce algorithm.
+        SatMapReduceHelper.saveProblemSplit(List(), problemSplitVars, SatMapReduceConstants.sat_tmp_folder_input + "/init_problem");
 
-      //when mapReduce finishes.
-      //check if solution is found =>
-      //if found => finish!.
-      //if not found => create new subproblem instances based on previous split
-      //                restart MapReduce but now with jobType = iteration
+        //Upload sat problem to the Zookeeper.
+        CacheHelper.putSatInstance(inputPath)
 
+      } else {
+        restartMapReduceJob();
+      }
 
     }
 
@@ -67,11 +75,15 @@ class SatMapReduceMain extends Configured with Tool {
 
   }
 
+  def restartMapReduceJob() {
+    //cleanup input path
+    //generate new problem instances.
+    //call MapReduce Job.
+  }
 
 
-  def main(args: Array[String])
-  {
-    var res = ToolRunner.run(new Configuration(), new SatMapReduceMain(),args);
+  def main(args: Array[String]) {
+    var res = ToolRunner.run(new Configuration(), new SatMapReduceMain(), args);
     System.exit(res);
   }
 

@@ -1,31 +1,34 @@
 package scala.hadoop
 
-import org.apache.hadoop.io.{Text, NullWritable}
+import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapreduce.Mapper
+import scala.domain.Formula
+import scala.utils.CacheHelper
 
 /**
  * Created by marbarfa on 1/13/14.
  */
-class SatMapReduceMapper extends Mapper[Object, Text, Text, NullWritable ]{
-
+class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text]{
+  var formula : Formula = null.asInstanceOf[Formula]
 
 
   protected override def setup(context: Mapper#Context) {
     // retrieve 3SAT instance.
+    if (formula == null){
+      formula = CacheHelper.getSatInstance()
+    }
 
     // retrieve blacklist of configurations to prune.
   }
 
   /**
-   * The first map-reduce routine will split the problem saving in the file different configurations.
-   * Afterwards, the partitioner will read and give each mapper a line with specific mapper configuration to execute.
-   * @param key
+   * The mapper key will be
+   * @param key line offset
    * @param value
    * @param context
    */
-  def map(key: Nothing, value: Nothing, context: Nothing) {
-    //retrieve current problem split. => the problem will be splitted by the partitoner.
-
+  override def map(key: LongWritable, value: Text, context: Mapper#Context){
 
   }
+
 }

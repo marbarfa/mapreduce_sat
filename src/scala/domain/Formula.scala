@@ -7,6 +7,8 @@ class Formula {
 
   var clauses : List[Clause] = _
 
+  var n : Int = _
+  var m : Int = _
   /**
    * @return true if the formula is satisfiable
    */
