@@ -5,19 +5,23 @@ package scala.domain
  */
 class Clause {
 
-  var variables : List[Variable] = _
+  var literals : List[Int] = _
 
   /**
    * @return true if the clause is satisfiable.
    */
-  def isSatisfasiable() : Boolean = {
+  def isSatisfasiable(vars : Map[Int, Boolean]) : Boolean = {
     var res = false
-    for (v <- variables){
-      if (v.isValueSet){
-        res = res || (((v.number > 0 ) && v.boolValue) || (v.number < 0 && !v.boolValue))
-      }
+    for (l <- literals){
+        res = res || getBoolValue(l, vars)
     }
     return res
+  }
+  
+  def getBoolValue(l: Int, vars : Map[Int, Boolean]) : Boolean = {
+    if (vars.containsKey(Math.abs(l)))
+      return (((l>0) && vars(l)) || ((l<0) && vars(l)))
+    return true;  
   }
 
 }
