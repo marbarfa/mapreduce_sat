@@ -6,6 +6,7 @@ package scala.domain
 class Formula {
 
   var clauses : List[Clause] = _
+  var clausesOfVars : Map[Int, List[Clause]] = new Map[Int, List[Clause]]()
 
   var n : Int = _
   var m : Int = _
@@ -19,5 +20,10 @@ class Formula {
     }
     return res
   }
+  
+  def addClauseOfVar(literal : Int, clause : List[Clause]) {
+      clauses.put(literal, clause :: if (!clauses.containsKey(literal)) List[Clause]() else clauses.get(literal))
+  }
+  
 
 }
