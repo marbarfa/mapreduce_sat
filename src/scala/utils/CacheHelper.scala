@@ -28,6 +28,8 @@ object CacheHelper {
      return SatReader.read3SatInstance(SatMapReduceConstants.zookeper_instance_path)
   }
 
+  def getDepth() : Int = return 4;
+
 
 
 }

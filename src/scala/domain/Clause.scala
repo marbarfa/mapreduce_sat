@@ -13,7 +13,9 @@ class Clause {
   def isSatisfasiable() : Boolean = {
     var res = false
     for (v <- variables){
-      res = res || (v.number > 0)
+      if (v.isValueSet){
+        res = res || (((v.number > 0 ) && v.boolValue) || (v.number < 0 && !v.boolValue))
+      }
     }
     return res
   }
