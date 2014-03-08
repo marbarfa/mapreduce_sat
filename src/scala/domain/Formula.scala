@@ -1,29 +1,38 @@
 package scala.domain
 
+import scala.collection.immutable.HashMap
+
 /**
  * Created by marbarfa on 3/2/14.
  */
 class Formula {
 
-  var clauses : List[Clause] = _
-  var clausesOfVars : Map[Int, List[Clause]] = new Map[Int, List[Clause]]()
+  var clauses: List[Clause] = _
+  var clausesOfVars: Map[Int, List[Clause]] = new HashMap[Int, List[Clause]]()
 
-  var n : Int = _
-  var m : Int = _
+  var n: Int = _
+  var m: Int = _
+
   /**
    * @return true if the formula is satisfiable
    */
-  def isSatisfasiable() : Boolean = {
+  def isSatisfasiable(literals : Map[Int, Boolean]): Boolean = {
     var res = true
-    for (c <- clauses){
-      res = res && c.isSatisfasiable()
+    for (c <- clauses) {
+      res = res && c.isSatisfasiable(literals)
     }
     return res
   }
-  
-  def addClauseOfVar(literal : Int, clause : List[Clause]) {
-      clauses.put(literal, clause :: if (!clauses.containsKey(literal)) List[Clause]() else clauses.get(literal))
+
+  /**
+   * Adds a new dependable clause to a literal @literal.
+   * This method is used to have a map of literal ==> where it appears in the Formula.
+   * @param literal
+   * @param clause
+   */
+  def addClauseOfVar(literal: Int, clause: Clause) {
+    clausesOfVars += (literal -> (clause :: clausesOfVars.getOrElse(literal, List[Clause]()) ))
   }
-  
+
 
 }

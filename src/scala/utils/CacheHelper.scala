@@ -24,11 +24,9 @@ object CacheHelper {
    * Retrieves the SAT instance from Distributed Cache.
    * @return
    */
-  def getSatInstance() : Formula = {
-     return SatReader.read3SatInstance(SatMapReduceConstants.zookeper_instance_path)
-  }
+  def sat_instance : Formula = SatReader.read3SatInstance(SatMapReduceConstants.zookeper_instance_path)
 
-  def getDepth() : Int = return 4;
+  def depth : Int = 4
 
 
 

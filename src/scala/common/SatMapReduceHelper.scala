@@ -2,7 +2,6 @@ package scala.common
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
-import scala.domain.Variable
 
 /**
  * Created by marbarfa on 3/3/14.
@@ -17,12 +16,11 @@ object SatMapReduceHelper {
    * @param n
    * @return
    */
-  def generateProblemSplit(fixedVars: List[Variable], n: Int, amount: Int): List[Variable] = {
-    var variables: List[Variable] = _
+  def generateProblemSplit(fixedVars: List[Int], n: Int, amount: Int): List[Int] = {
+    var variables: List[Int] = List[Int]();
     for (i <- 0 until n) {
-      var possibleVar = new Variable(i)
-      if (!fixedVars.contains(possibleVar)) {
-        variables = possibleVar :: variables;
+      if (!fixedVars.contains(i)) {
+        variables = i :: variables;
       }
       if (variables.size >= amount) {
         return variables;
@@ -42,14 +40,13 @@ object SatMapReduceHelper {
    * @param variableVars variableVars variables
    * @param savePath where to save (file name) the subproblem definition.
    */
-  def saveProblemSplit(fixedVars : List[Variable], variableVars: List[Variable], savePath: String) {
+  def saveProblemSplit(fixedVars : List[Int], variableVars: List[Int], savePath: String) {
     val linesCant = Math.pow(variableVars.size, 2).toInt
     var strValues: Array[String] = new Array[String](linesCant)
     var varVals = 0
 
-    var fixedStr : String = ""
-    for(v <- fixedVars) fixedStr += v.number + " "
-    fixedStr = fixedStr.trim
+    //eg: for List(1,2,3,4) => fixedStr = "1 2 3 4"
+    var fixedStr : String = fixedVars.foldLeft("") ((a,b) => a + " " + b.toString)
 
 
     for (i <- 0 until linesCant) {
@@ -81,10 +78,10 @@ object SatMapReduceHelper {
    * @param valueString
    * @return
    */
-  private def generateSubproblemLine(fixed : List[Variable], valueString : String) : String = {
-      var res : String = null.asInstanceOf[String]
+  private def generateSubproblemLine(fixed : List[Int], valueString : String) : String = {
+      var res : String = ""
     for(i <- 0 until fixed.size){
-      res += Math.abs(fixed(i).number) * Integer.parseInt(valueString.charAt(fixed.size-1 -i).toString)
+      res += Math.abs(fixed(i)) * Integer.parseInt(valueString.charAt(fixed.size-1 -i).toString)
     }
     res = res.trim
     return res;

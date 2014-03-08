@@ -9,7 +9,6 @@ import org.apache.hadoop.mapreduce.lib.input.{NLineInputFormat, FileInputFormat}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.hadoop.util.{ToolRunner, Tool}
 import scala.common.{SatMapReduceHelper, SatMapReduceConstants}
-import scala.domain.Variable
 import scala.utils.{CacheHelper, SatReader}
 
 /**
@@ -53,7 +52,8 @@ class SatMapReduceMain extends Configured with Tool {
 
       if (EnumSatJobType.initial_configuration == jobType) {
         var formula = SatReader.read3SatInstance(inputPath);
-        var literals: List[Variable] = SatMapReduceHelper.generateProblemSplit(List[Variable](), formula.n, SatMapReduceConstants.variable_literals_amount)
+        var literals: List[Int] = SatMapReduceHelper.generateProblemSplit(List[Int](), formula.n,
+          SatMapReduceConstants.variable_literals_amount)
 
         //generate problem split -> first choose which literals use as variables and how many.
         var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), formula.n, SatMapReduceConstants.variable_literals_amount);
@@ -61,7 +61,7 @@ class SatMapReduceMain extends Configured with Tool {
         SatMapReduceHelper.saveProblemSplit(List(), problemSplitVars, SatMapReduceConstants.sat_tmp_folder_input + "/init_problem");
 
         //Upload sat problem to the Zookeeper.
-        CacheHelper.putSatInstance(inputPath)
+        CacheHelper.putSatInstance(inputPath, getConf)
 
       } else {
         restartMapReduceJob();

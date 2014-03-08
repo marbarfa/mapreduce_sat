@@ -1,7 +1,7 @@
 package scala.utils
 
 import java.io.File
-import scala.domain.{Variable, Clause, Formula}
+import scala.domain.{Clause, Formula}
 import scala.io.Source
 
 /**
@@ -25,25 +25,24 @@ object SatReader extends ISatReader {
       //ignore commented lines
       if (!line.startsWith("#")) {
         //count clauses and variables.
-        clauses = clauses + 1;
-        var vars = line.split(" ");
+        clauses += 1;
         var clause = new Clause
+        formula.clauses = clause :: formula.clauses
         //read each var of the current clause.
-        vars.foreach(v => {
+        line.split(" ").foreach(v => {
           try {
-            var readVar = Integer.parseInt(v)
+            val readVar = Integer.parseInt(v)
             if (Math.abs(readVar) > numberOfVars) {
               numberOfVars = Math.abs(readVar)
             }
-            var variable = new Variable(readVar)
-            clause.variables = variable :: clause.variables
+            clause.literals ::= readVar
+            formula.addClauseOfVar(readVar, clause);
           } catch {
             case t: Throwable => {
               println("Error parsing problem instance."); throw new RuntimeException("Error parsing Sat Instance.")
             }
           }
         })
-        formula.clauses = clause :: formula.clauses
       }
     }
     formula.n = numberOfVars;

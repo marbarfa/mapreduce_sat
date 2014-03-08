@@ -19,7 +19,7 @@ class Clause {
   }
   
   def getBoolValue(l: Int, vars : Map[Int, Boolean]) : Boolean = {
-    if (vars.containsKey(Math.abs(l)))
+    if (vars.contains(Math.abs(l)))
       return (((l>0) && vars(l)) || ((l<0) && vars(l)))
     return true;  
   }
