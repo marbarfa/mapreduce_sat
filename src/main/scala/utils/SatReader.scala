@@ -32,7 +32,7 @@ object SatReader extends ISatReader {
         line.split(" ").foreach(v => {
           try {
             val readVar = Integer.parseInt(v)
-            if (Math.abs(readVar) > numberOfVars) {
+            if (math.abs(readVar) > numberOfVars) {
               numberOfVars = Math.abs(readVar)
             }
             clause.literals ::= readVar
@@ -49,4 +49,11 @@ object SatReader extends ISatReader {
     formula.m = clauses;
     return formula;
   }
+
+  /**
+   * This method returns true if a solution is found.
+   * @return
+   */
+  def readSolution() : Boolean = Source.fromFile(new File("sat_solution.txt")).getLines().size > 0
+
 }

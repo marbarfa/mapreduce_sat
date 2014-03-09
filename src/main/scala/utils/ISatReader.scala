@@ -9,6 +9,6 @@ import scala.domain.Formula
  */
 trait ISatReader {
 
-  abstract def read3SatInstance(intance_path : String) : Formula;
+  def read3SatInstance(intance_path : String) : Formula;
 
 }

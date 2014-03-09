@@ -7,6 +7,23 @@ import scala.collection.immutable.HashMap
  */
 class Formula {
 
+  def getFalseClauses(literals: Map[Int, Boolean]): List[Clause] = {
+    var falseClauses = List[Clause]();
+
+    literals.keySet.foreach(literal => {
+      clausesOfVars
+        .getOrElse(literal, List[Clause]())
+        .foreach(clause => {
+          if (!clause.isSatisfasiable(literals)) {
+            falseClauses ::= clause
+          }
+        })
+    })
+
+    return falseClauses;
+  }
+
+
   var clauses: List[Clause] = _
   var clausesOfVars: Map[Int, List[Clause]] = new HashMap[Int, List[Clause]]()
 
@@ -16,7 +33,7 @@ class Formula {
   /**
    * @return true if the formula is satisfiable
    */
-  def isSatisfasiable(literals : Map[Int, Boolean]): Boolean = {
+  def isSatisfasiable(literals: Map[Int, Boolean]): Boolean = {
     var res = true
     for (c <- clauses) {
       res = res && c.isSatisfasiable(literals)
@@ -31,7 +48,7 @@ class Formula {
    * @param clause
    */
   def addClauseOfVar(literal: Int, clause: Clause) {
-    clausesOfVars += (literal -> (clause :: clausesOfVars.getOrElse(literal, List[Clause]()) ))
+    clausesOfVars += (literal -> (clause :: clausesOfVars.getOrElse(literal, List[Clause]())))
   }
 
 
