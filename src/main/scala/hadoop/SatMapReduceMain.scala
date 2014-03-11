@@ -1,9 +1,9 @@
 package scala.hadoop
 
+import main.scala.hadoop.SatJob
 import org.apache.hadoop.conf.{Configuration, Configured}
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.mapreduce.lib.input.{NLineInputFormat, FileInputFormat}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.hadoop.util.{ToolRunner, Tool}
@@ -36,34 +36,38 @@ class SatMapReduceMain extends Configured with Tool {
         "input_path : where input files are located.\n" +
         "output_path: where output files will be saved\n")
     } else {
-      var job = createInitJob(input);
-      val finishedOk: Boolean = job.waitForCompletion(true)
-      if (finishedOk) {
-        //Restart job if neccessary.
+      var job : SatJob = createInitJob(input);
+      var finishedOk: Boolean = job.waitForCompletion(true)
+      var end = false;
+      while (finishedOk && !end){
         if (SatReader.readSolution()) {
           //job ended with solution found!
-          return 0
+          //save solution to output.
+          val fs = FileSystem.get(new Configuration())
+          fs.rename(new Path(job.output), new Path(output));
+          end = true;
         } else {
-          //solution not found yet.
-          val job2: Job = createNewJob(output, input + iterations)
-
+          //solution not found yet => start next iteration.(input = previous output, output = new tmp
+          job = createNewJob(job.output, "tmp_it_" + (job.iteration + 1), job.iteration + 1)
+          finishedOk = job.waitForCompletion(true);
         }
       }
 
+      if (finishedOk){
+        return 0;
+      }else{
+        return 1;
+      }
     }
 
     return 1
 
   }
 
-  private def createInitJob(input: String): Job = {
-    var job = createNewJob(input, "it_1");
-    FileInputFormat.setInputPaths(job, new Path(input))
-    FileOutputFormat.setOutputPath(job, new Path(SatMapReduceConstants.sat_tmp_folder_output))
+  private def createInitJob(input: String): SatJob = {
+    var job = createNewJob(input, "tmp_it_"+1, 1);
 
     var formula = SatReader.read3SatInstance(input);
-    var literals: List[Int] = SatMapReduceHelper.generateProblemSplit(List[Int](), formula.n,
-      SatMapReduceConstants.variable_literals_amount)
 
     //generate problem split -> first choose which literals use as variables and how many.
     var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), formula.n, SatMapReduceConstants.variable_literals_amount);
@@ -80,14 +84,19 @@ class SatMapReduceMain extends Configured with Tool {
     return job;
   }
 
-  private def createNewJob(input: String, output: String): Job = {
-    val job: Job = new Job(getConf, classOf[SatMapReduceMain].getSimpleName)
+  private def createNewJob(input: String, output: String, iteration : Int): SatJob = {
+    val job = new SatJob(input, output, iteration, getConf, classOf[SatMapReduceMain].getSimpleName)
     job.setJarByClass(classOf[SatMapReduceMain])
     job.setMapperClass(classOf[SatMapReduceMapper])
     job.setOutputKeyClass(classOf[Text])
     job.setOutputValueClass(classOf[Text])
     //use NLineInputFormat => each mapper will receive one line of the file
     job.setInputFormatClass(classOf[NLineInputFormat]);
+
+    FileInputFormat.setInputPaths(job, new Path(input))
+    FileOutputFormat.setOutputPath(job, new Path(output))
+
+    return job
   }
 
   def restartMapReduceJob() {
