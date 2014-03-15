@@ -1,6 +1,5 @@
-package scala.utils
+package main.scala.utils
 
-import scala.domain.Formula
 
 /**
  * Interface of the 3SAT instance reader.s

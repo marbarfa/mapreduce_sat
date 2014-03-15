@@ -1,7 +1,7 @@
-package scala.utils
+package main.scala.utils
 
 import java.io.File
-import scala.domain.{Clause, Formula}
+import scala.domain.Clause
 import scala.io.Source
 
 /**

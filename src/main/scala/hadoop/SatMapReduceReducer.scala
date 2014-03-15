@@ -1,4 +1,4 @@
-package scala.hadoop
+package main.scala.hadoop
 
 import java.lang
 import org.apache.hadoop.hbase.HBaseConfiguration
@@ -6,9 +6,6 @@ import org.apache.hadoop.hbase.client.HTable
 import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.hadoop.mapreduce.Reducer
 import scala.collection.JavaConverters._
-import scala.common.SatMapReduceHelper
-import scala.domain.Formula
-import scala.utils.CacheHelper
 
 /**
   * Created by marbarfa on 1/13/14.

@@ -1,8 +1,8 @@
-package scala.common
+package main.scala.common
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
-import scala.utils.{ISatCallback, ConvertionHelper}
+import scala.utils.ISatCallback
 
 /**
  * Created by marbarfa on 3/3/14.

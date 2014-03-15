@@ -1,4 +1,4 @@
-package scala.domain
+package main.scala.domain
 
 import scala.collection.immutable.HashMap
 

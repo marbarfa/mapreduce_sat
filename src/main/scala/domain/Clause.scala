@@ -1,4 +1,4 @@
-package scala.domain
+package main.scala.domain
 
 /**
  * Created by marbarfa on 3/2/14.
@@ -19,7 +19,7 @@ class Clause {
   }
   
   def getBoolValue(l: Int, vars : Map[Int, Boolean]) : Boolean = {
-    if (vars.contains(Math.abs(l)))
+    if (vars.contains(math.abs(l)))
       return ((l>0) && vars(l)) || ((l<0) && vars(l))
     return true;  
   }

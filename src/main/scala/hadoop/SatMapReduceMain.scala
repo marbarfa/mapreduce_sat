@@ -1,14 +1,15 @@
-package scala.hadoop
+package main.scala.hadoop
 
 import main.scala.hadoop.SatJob
 import org.apache.hadoop.conf.{Configuration, Configured}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapreduce.lib.input.{NLineInputFormat, FileInputFormat}
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
+
 import org.apache.hadoop.util.{ToolRunner, Tool}
-import scala.common.{SatMapReduceHelper, SatMapReduceConstants}
+import scala.common.SatMapReduceHelper
 import scala.utils.{ISatCallback, CacheHelper, SatReader}
+import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat, NLineInputFormat}
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 
 /**
  * Created by marbarfa on 1/13/14.
@@ -79,7 +80,7 @@ class SatMapReduceMain extends Configured with Tool {
     })
 
     //Upload sat problem to the Zookeeper.
-    CacheHelper.putSatInstance(input, getConf)
+    CacheHelper.putSatInstance(job, input)
 
     return job;
   }
@@ -93,8 +94,8 @@ class SatMapReduceMain extends Configured with Tool {
     //use NLineInputFormat => each mapper will receive one line of the file
     job.setInputFormatClass(classOf[NLineInputFormat]);
 
-    FileInputFormat.setInputPaths(job, new Path(input))
-    FileOutputFormat.setOutputPath(job, new Path(output))
+    FileInputFormat.setInputPaths(job, new Path("in"))
+    FileOutputFormat.setOutputPath(job, new Path("out"))
 
     return job
   }

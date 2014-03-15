@@ -1,12 +1,11 @@
-package scala.hadoop
+package main.scala.hadoop
 
 import org.apache.hadoop.hbase.HBaseConfiguration
-import org.apache.hadoop.hbase.client.{Result, Get, HTable}
+import org.apache.hadoop.hbase.client.{Get, Result, HTable}
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapreduce.Mapper
-import scala.common.SatMapReduceHelper
-import scala.domain.{Clause, Formula}
-import scala.utils.{ISatCallback, ConvertionHelper, CacheHelper}
+import scala.domain.Formula
+import scala.utils.{ConvertionHelper, CacheHelper}
 
 /**
  *
