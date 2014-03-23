@@ -10,6 +10,10 @@ object SatMapReduceConstants {
   val sat_tmp_folder_input = "sat_tmp_input";
   val sat_tmp_folder_output = "sat_tmp_output";
 
+  val sat_solution_path: String = "sat_solution.txt"
+
   val variable_literals_amount = 2
+
+
 
 }

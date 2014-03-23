@@ -1,8 +1,8 @@
 package main.scala.common
 
+import main.scala.utils.{ISatCallback, ConvertionHelper}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
-import scala.utils.ISatCallback
 
 /**
  * Created by marbarfa on 3/3/14.
@@ -55,9 +55,9 @@ object SatMapReduceHelper extends ConvertionHelper {
   def createMap(vars : List[Int], intBinaryValue : Int) : Map[Int,
     Boolean] ={
     var res = Map[Int,Boolean]()
-    for(i <- 0 to vars.size){
+    for(i <- 0 until vars.size){
       var boolValue : Boolean = intBinaryValue & Math.pow(2, i).toInt
-      res+= (vars(i) -> boolValue)
+      res += (vars(i) -> boolValue)
     }
     return res;
   }
@@ -65,7 +65,7 @@ object SatMapReduceHelper extends ConvertionHelper {
   def genearteProblemMap(possibleVars : List[Int], callback : ISatCallback[Map[Int,Boolean]]){
     var maxValue  = math.pow(2,possibleVars.size).toInt
     //try to assign values to the selected literals
-    for(i <- 0 to maxValue){
+    for(i <- 0 until maxValue){
       var subproblem = createMap(possibleVars, i)
       callback apply subproblem     
     }
@@ -75,12 +75,8 @@ object SatMapReduceHelper extends ConvertionHelper {
 
   /**
    * Saves in a file in the inputPath a line with a subproblem definition.
-   * each line will be, for example:
-   * let variableVars = (1,2), fixedVars= (3 => true) => it will save a file in HDFS with the following lines:
-   * 3;-1 -2
-   * 3;-1 2
-   * 3;1 -2
-   * 3;1 2
+   * eg: literals = Map(1:true,2:false) => it will save a file in HDFS with the following lines:
+   * 1 -2
    * @param literals variableVars variables
    * @param savePath where to save (file name) the subproblem definition.
    */
@@ -94,12 +90,12 @@ object SatMapReduceHelper extends ConvertionHelper {
     out.close();
   }
 
-  //eg: for Map(1 -> true, 2->false, 3->false) ===> definition = "1:1 2:0 3:0"
+  //eg: for Map(1 -> true, 2->false, 3->false) ===> definition = "1 -2 -3"
   def createSatString(literals : Map[Int, Boolean]) : String =
     literals
       .keySet
-      .foldLeft("")((a, b) =>
-      a + " " + (b.toString + ":" + bool2int(literals(b))))
+      .foldLeft("")((varStr, b) =>
+      varStr + " " + (if (literals(b)) b else -b).toString + ":")
 
   /**
    * Converts a int value to a binary string of @digits digits.
@@ -109,5 +105,6 @@ object SatMapReduceHelper extends ConvertionHelper {
    */
   def toBinary(i: Int, digits: Int = 8) =
     String.format("%" + digits + "s", i.toBinaryString).replace(' ', '0')
+
 
 }

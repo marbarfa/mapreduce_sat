@@ -1,11 +1,12 @@
 package main.scala.hadoop
 
+import main.scala.common.SatMapReduceHelper
+import main.scala.domain.{Formula, Clause}
+import main.scala.utils.{ConvertionHelper, CacheHelper, ISatCallback}
 import org.apache.hadoop.hbase.HBaseConfiguration
-import org.apache.hadoop.hbase.client.{Get, Result, HTable}
+import org.apache.hadoop.hbase.client.{Put, Get, Result, HTable}
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapreduce.Mapper
-import scala.domain.Formula
-import scala.utils.{ConvertionHelper, CacheHelper}
 
 /**
  *
@@ -25,7 +26,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
   protected override def setup(context: Context) {
     // retrieve 3SAT instance.
     if (formula == null) {
-      formula = CacheHelper.sat_instance
+      formula = CacheHelper.sat_instance(context.getConfiguration.get("problem_path"))
     }
 
     // Get HBase table of invalid variable combination
@@ -39,7 +40,10 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
    * @param literals
    */
   def addLiteralsToDB(clause: Clause, literals: Map[Int, Boolean]) {
+    var key = literalMapToDBKey(literals)
 
+    var put = new Put(key.toString.getBytes)
+    put.add("cf".getBytes, "a".getBytes, clause.toString.getBytes);
   }
 
 
@@ -75,13 +79,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
   }
 
   private def existsInKnowledgeBase(vars: Map[Int, Boolean]): Boolean = {
-    var varkey: String = ""
-    vars
-      .keySet
-      .toList
-      .sorted
-      .foreach(k =>
-      varkey += k.toString + vars.getOrElse(k, false))
+    var varkey: String = literalMapToDBKey(vars)
     try {
       val result: Result = table.get(new Get(varkey.getBytes))
       if (result != null) {

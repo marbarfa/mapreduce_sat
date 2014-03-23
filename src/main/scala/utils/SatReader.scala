@@ -1,7 +1,8 @@
 package main.scala.utils
 
 import java.io.File
-import scala.domain.Clause
+import main.scala.common.SatMapReduceConstants
+import main.scala.domain.{Formula, Clause}
 import scala.io.Source
 
 /**
@@ -22,6 +23,7 @@ object SatReader extends ISatReader {
 
     // read problem instance from file.
     for (line <- Source.fromFile(new File(instance_path)).getLines()) {
+      println(s"Reading line: $line");
       //ignore commented lines
       if (!line.startsWith("#")) {
         //count clauses and variables.
@@ -39,7 +41,8 @@ object SatReader extends ISatReader {
             formula.addClauseOfVar(readVar, clause);
           } catch {
             case t: Throwable => {
-              println("Error parsing problem instance."); throw new RuntimeException("Error parsing Sat Instance.")
+              println("Error parsing problem instance.", t);
+              throw t;
             }
           }
         })
@@ -47,6 +50,9 @@ object SatReader extends ISatReader {
     }
     formula.n = numberOfVars;
     formula.m = clauses;
+    println(s"Problem instance read successfully: n=${formula.n}, m=${formula.m}")
+
+
     return formula;
   }
 
@@ -54,6 +60,9 @@ object SatReader extends ISatReader {
    * This method returns true if a solution is found.
    * @return
    */
-  def readSolution() : Boolean = Source.fromFile(new File("sat_solution.txt")).getLines().size > 0
+  def readSolution() : Boolean = {
+    println("Trying to read a 3SAT solution")
+    Source.fromFile(new File(SatMapReduceConstants.sat_solution_path)).getLines().size > 0
+  }
 
 }

@@ -1,6 +1,7 @@
 package main.scala.utils
 
 import java.net.URI
+import main.scala.domain.Formula
 import org.apache.hadoop.mapreduce.Job
 
 /**
@@ -14,6 +15,7 @@ object CacheHelper {
    */
   def putSatInstance(job : Job, problem_path : String) = {
     job.addCacheArchive(new URI(problem_path))
+    job.getConfiguration.set("problem_path", problem_path);
   }
 
 
@@ -21,7 +23,9 @@ object CacheHelper {
    * Retrieves the SAT instance from Distributed Cache.
    * @return
    */
-  def sat_instance : Formula = SatReader.read3SatInstance(SatMapReduceConstants.zookeper_instance_path)
+  def sat_instance(problem_path : String) : Formula = {
+    SatReader.read3SatInstance(problem_path)
+  }
 
   def depth : Int = 4
 

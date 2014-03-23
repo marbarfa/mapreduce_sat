@@ -5,7 +5,7 @@ package main.scala.domain
  */
 class Clause {
 
-  var literals : List[Int] = _
+  var literals : List[Int] = List[Int]()
 
   /**
    * @return true if the clause is satisfiable.

@@ -7,24 +7,7 @@ import scala.collection.immutable.HashMap
  */
 class Formula {
 
-  def getFalseClauses(literals: Map[Int, Boolean]): List[Clause] = {
-    var falseClauses = List[Clause]();
-
-    literals.keySet.foreach(literal => {
-      clausesOfVars
-        .getOrElse(literal, List[Clause]())
-        .foreach(clause => {
-          if (!clause.isSatisfasiable(literals)) {
-            falseClauses ::= clause
-          }
-        })
-    })
-
-    return falseClauses;
-  }
-
-
-  var clauses: List[Clause] = _
+  var clauses: List[Clause] = List[Clause]()
   var clausesOfVars: Map[Int, List[Clause]] = new HashMap[Int, List[Clause]]()
 
   var n: Int = _
@@ -35,11 +18,16 @@ class Formula {
    */
   def isSatisfasiable(literals: Map[Int, Boolean]): Boolean = {
     var res = true
-    for (c <- clauses) {
+    var affectedClauses = getClauses(literals)
+    for (c <- affectedClauses) {
       res = res && c.isSatisfasiable(literals)
     }
     return res
   }
+
+  def getClauses(literals : Map[Int, Boolean]) : List[Clause] =
+     literals.keys.foldLeft(List[Clause]()) {(list, key) => list ::: clausesOfVars.getOrElse(key, List[Clause]())}
+
 
   /**
    * Adds a new dependable clause to a literal @literal.
@@ -51,5 +39,20 @@ class Formula {
     clausesOfVars += (literal -> (clause :: clausesOfVars.getOrElse(literal, List[Clause]())))
   }
 
+  def getFalseClauses(literals: Map[Int, Boolean]): List[Clause] = {
+    var falseClauses = List[Clause]();
+
+    literals.keySet.foreach(literal => {
+      clausesOfVars
+        .getOrElse(literal, List[Clause]())
+        .foreach(clause => {
+        if (!clause.isSatisfasiable(literals)) {
+          falseClauses ::= clause
+        }
+      })
+    })
+
+    return falseClauses;
+  }
 
 }
