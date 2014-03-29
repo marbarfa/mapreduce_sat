@@ -2,9 +2,9 @@ package main.scala.hadoop
 
 import main.scala.common.SatMapReduceHelper
 import main.scala.domain.{Formula, Clause}
-import main.scala.utils.{ConvertionHelper, CacheHelper, ISatCallback}
+import main.scala.utils.{SatLoggingUtils, ConvertionHelper, CacheHelper, ISatCallback}
 import org.apache.hadoop.hbase.HBaseConfiguration
-import org.apache.hadoop.hbase.client.{Put, Get, Result, HTable}
+import org.apache.hadoop.hbase.client.{Put, Result, HTable, Get}
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapreduce.Mapper
 
@@ -17,7 +17,7 @@ import org.apache.hadoop.mapreduce.Mapper
  *
  * Created by marbarfa on 1/13/14.
  */
-class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with ConvertionHelper {
+class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with ConvertionHelper with SatLoggingUtils {
   var formula: Formula = _
   var table: HTable = _
   type Context = Mapper[LongWritable, Text, Text, Text]#Context
@@ -41,6 +41,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
    */
   def addLiteralsToDB(clause: Clause, literals: Map[Int, Boolean]) {
     var key = literalMapToDBKey(literals)
+    log.info(s"False combination of literals: ${key}")
 
     var put = new Put(key.toString.getBytes)
     put.add("cf".getBytes, "a".getBytes, clause.toString.getBytes);
@@ -56,25 +57,31 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
    */
   override def map(key: LongWritable, value: Text, context: Context) {
     var d = CacheHelper.depth
-    var fixedLiterals: Map[Int, Boolean] =  SatMapReduceHelper.parseInstanceDef(key.toString)
+    log.info(s"Starting mapper with key $key, value: ${value.toString}, depth: $d")
+    var fixedLiterals: Map[Int, Boolean] =  SatMapReduceHelper.parseInstanceDef(value.toString)
 
     var possibleVars: List[Int] = SatMapReduceHelper.generateProblemSplit(fixedLiterals.keySet.toList, formula.n, d)
 
 
     SatMapReduceHelper.genearteProblemMap(possibleVars, new ISatCallback[Map[Int, Boolean]] {
-      override def apply(subproblem: Map[Int, Boolean]) =
+      override def apply(subproblem: Map[Int, Boolean]) = {
+        log.info(s"Checking subproblem: ${literalMapToDBKey(subproblem)}")
 
         if (!existsInKnowledgeBase(subproblem)) {
           var satisfasiable = formula.isSatisfasiable(subproblem)
           if (!satisfasiable) {
+            log.info ("Subproblem not a valid subsolution")
             //add variable combination to knowledge base.
             var clauses = formula.getFalseClauses(subproblem)
             clauses.foreach(clause => addLiteralsToDB(clause, subproblem));
           } else {
             //output key="fixed", value="subproblem"
-            context.write(value, new Text(SatMapReduceHelper.createSatString(fixedLiterals ++ subproblem).getBytes));
+            var satString = SatMapReduceHelper.createSatString(fixedLiterals ++ subproblem)
+            log.info (s"Subproblem is a valid subsolution, output: $satString")
+            context.write(value, new Text(satString.getBytes));
           }
         }
+      }
     })
   }
 
@@ -86,7 +93,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
         return true;
       }
     } catch {
-      case t: Throwable => // variable combination not found.
+      case t: Throwable => log.error (s"Key not found in DB, error: ${t.getCause}")// variable combination not found.
     }
     return false;
 

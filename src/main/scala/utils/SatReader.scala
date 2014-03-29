@@ -1,6 +1,6 @@
 package main.scala.utils
 
-import java.io.File
+import java.io.{FileNotFoundException, File}
 import main.scala.common.SatMapReduceConstants
 import main.scala.domain.{Formula, Clause}
 import scala.io.Source
@@ -8,7 +8,7 @@ import scala.io.Source
 /**
  * Created by marbarfa on 3/2/14.
  */
-object SatReader extends ISatReader {
+object SatReader extends ISatReader with SatLoggingUtils{
 
 
   /**
@@ -41,7 +41,7 @@ object SatReader extends ISatReader {
             formula.addClauseOfVar(readVar, clause);
           } catch {
             case t: Throwable => {
-              println("Error parsing problem instance.", t);
+              log.error("Error parsing problem instance.", t);
               throw t;
             }
           }
@@ -50,7 +50,7 @@ object SatReader extends ISatReader {
     }
     formula.n = numberOfVars;
     formula.m = clauses;
-    println(s"Problem instance read successfully: n=${formula.n}, m=${formula.m}")
+    log.info(s"Problem instance read successfully: n=${formula.n}, m=${formula.m}")
 
 
     return formula;
@@ -61,8 +61,16 @@ object SatReader extends ISatReader {
    * @return
    */
   def readSolution() : Boolean = {
-    println("Trying to read a 3SAT solution")
-    Source.fromFile(new File(SatMapReduceConstants.sat_solution_path)).getLines().size > 0
+    log.info("Trying to read a 3SAT solution")
+    var res = true;
+    try{
+      res  = Source.fromFile(new File(SatMapReduceConstants.sat_solution_path)).getLines().size > 0
+    } catch {
+      case e : FileNotFoundException => res = false;
+    }
+
+    return res;
   }
+
 
 }

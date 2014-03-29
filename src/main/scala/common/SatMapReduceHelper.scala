@@ -1,13 +1,13 @@
 package main.scala.common
 
-import main.scala.utils.{ISatCallback, ConvertionHelper}
+import main.scala.utils.{SatLoggingUtils, ISatCallback, ConvertionHelper}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
 
 /**
  * Created by marbarfa on 3/3/14.
  */
-object SatMapReduceHelper extends ConvertionHelper {
+object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
 
   /**
    * This method returns some random (or not) variables to be used to split the problem
@@ -18,6 +18,7 @@ object SatMapReduceHelper extends ConvertionHelper {
    * @return
    */
   def generateProblemSplit(fixedVars: List[Int], n: Int, amount: Int): List[Int] = {
+    log.info(s"Generating subproblem split. Fixed: ${fixedVars.toString()}, n: $n, amount: $amount")
     var variables: List[Int] = List[Int]();
     for (i <- 0 until n) {
       if (!fixedVars.contains(i)) {
@@ -27,6 +28,7 @@ object SatMapReduceHelper extends ConvertionHelper {
         return variables;
       }
     }
+    log.info(s"Generated split: ${variables.toString()}")
     return variables;
   }
 
@@ -81,7 +83,7 @@ object SatMapReduceHelper extends ConvertionHelper {
    * @param savePath where to save (file name) the subproblem definition.
    */
   def saveProblemSplit(literals: Map[Int, Boolean], savePath: String) {
-
+    log.info(s"Saving sat string: ${createSatString(literals)}")
     val fs = FileSystem.get(new Configuration())
     var out: FSDataOutputStream = fs.create(new Path(savePath));
 
@@ -95,7 +97,7 @@ object SatMapReduceHelper extends ConvertionHelper {
     literals
       .keySet
       .foldLeft("")((varStr, b) =>
-      varStr + " " + (if (literals(b)) b else -b).toString + ":")
+      varStr + " " + (if (literals(b)) b else -b).toString)
 
   /**
    * Converts a int value to a binary string of @digits digits.
