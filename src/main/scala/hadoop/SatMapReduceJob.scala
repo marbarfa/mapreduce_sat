@@ -5,7 +5,7 @@ import main.scala.common.{SatMapReduceConstants, SatMapReduceHelper}
 import main.scala.utils.{SatLoggingUtils, CacheHelper, ISatCallback, SatReader}
 import org.apache.hadoop.conf.{Configuration, Configured}
 import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.hadoop.io.{NullWritable, Text}
+import org.apache.hadoop.io.Text
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat, NLineInputFormat}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.hadoop.util.Tool
@@ -17,6 +17,7 @@ import org.apache.hadoop.util.Tool
  */
 object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
 
+  var instance_path : String = _
 
   /**
    * Main SAT program.
@@ -33,15 +34,18 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
         "output_path: where output files will be saved\n")
     } else {
       log.info("Starting mapreduce algorithm...")
-      var job : SatJob = createInitJob(args(0));
+      instance_path = args(0)
+      var job : SatJob = createInitJob(instance_path);
       var finishedOk: Boolean = job.waitForCompletion(true)
       var end = false;
       while (finishedOk && !end){
         if (SatReader.readSolution()) {
+          log.info(s"Solution file found!, finishing algorithm....")
           //job ended with solution found!
           //save solution to output.
+          log.info(s"Rename/Move from ${SatMapReduceConstants.sat_solution_path} to ${args(1)}")
           val fs = FileSystem.get(new Configuration())
-          fs.rename(new Path(job.output), new Path(args(1)));
+          fs.rename(new Path(SatMapReduceConstants.sat_solution_path), new Path(args(1)));
           end = true;
         } else {
           log.info (s"Solution not found, starting iteration ${job.iteration + 1}")
@@ -71,14 +75,11 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
 
     //generate problem split -> first choose which literals use as variables and how many.
     var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), formula.n, SatMapReduceConstants.variable_literals_amount);
-    SatMapReduceHelper.genearteProblemMap(problemSplitVars, new ISatCallback[Map[Int, Boolean]] {
-      override def apply(t: Map[Int, Boolean]) =
+    SatMapReduceHelper.genearteProblemMap(problemSplitVars, new ISatCallback[Set[Int]] {
+      override def apply(t: Set[Int]) =
       //save problem definition in the input path to be used as input in the MapReduce algorithm.
         SatMapReduceHelper.saveProblemSplit(t, input_path);
     })
-
-    //Upload sat problem to the Zookeeper.
-    CacheHelper.putSatInstance(job, input)
 
     return job;
   }
@@ -93,7 +94,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     job.setReducerClass(classOf[SatMapReduceReducer])
 
 
-    job.setOutputKeyClass(classOf[NullWritable])
+    job.setOutputKeyClass(classOf[Text])
     job.setOutputValueClass(classOf[Text])
     //use NLineInputFormat => each mapper will receive one line of the file
 
@@ -102,6 +103,8 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
 
     job.setInputFormatClass(classOf[NLineInputFormat]);
 
+    //Upload sat problem to the Zookeeper.
+    CacheHelper.putSatInstance(job, instance_path)
     return job
   }
 

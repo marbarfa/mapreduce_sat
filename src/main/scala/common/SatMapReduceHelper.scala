@@ -1,8 +1,11 @@
 package main.scala.common
 
+import java.io._
 import main.scala.utils.{SatLoggingUtils, ISatCallback, ConvertionHelper}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
+import org.apache.hadoop.fs.{FileSystem, Path}
+import scala.collection.immutable.HashSet
+
 
 /**
  * Created by marbarfa on 3/3/14.
@@ -20,15 +23,15 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
   def generateProblemSplit(fixedVars: List[Int], n: Int, amount: Int): List[Int] = {
     log.info(s"Generating subproblem split. Fixed: ${fixedVars.toString()}, n: $n, amount: $amount")
     var variables: List[Int] = List[Int]();
-    for (i <- 0 until n) {
-      if (!fixedVars.contains(i)) {
+    (1 to n)
+      .toStream
+      .takeWhile(_ => variables.size < amount)
+      .foreach(i => {
+      if (!fixedVars.contains(i) && !fixedVars.contains(-i)) {
         variables = i :: variables;
       }
-      if (variables.size >= amount) {
-        return variables;
-      }
-    }
-    log.info(s"Generated split: ${variables.toString()}")
+    });
+
     return variables;
   }
 
@@ -39,11 +42,13 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    * @param instance
    * @return
    */
-  def parseInstanceDef(instance: String) : Map[Int, Boolean] =
-    instance
+  def parseInstanceDef(instance: String): Set[Int] = {
+    log.info(s"Parsing instance def: $instance")
+    instance.trim
       .split(" ")
-      .map(x => (math.abs(x.toInt), if (x.toInt > 0) true else false))
-      .toMap
+      .map(x => Integer.parseInt(x))
+      .toSet
+  }
 
 
   /**
@@ -53,26 +58,28 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    * @param vars
    * @param intBinaryValue
    * @return
-  */
-  def createMap(vars : List[Int], intBinaryValue : Int) : Map[Int,
-    Boolean] ={
-    var res = Map[Int,Boolean]()
-    for(i <- 0 until vars.size){
-      var boolValue : Boolean = intBinaryValue & Math.pow(2, i).toInt
-      res += (vars(i) -> boolValue)
+   */
+  def createMap(vars: List[Int], intBinaryValue: String): Set[Int] = {
+    var res = new HashSet[Int]()
+    for (i <- 0 until vars.size) {
+      if (Integer.parseInt(intBinaryValue.charAt(i).toString) == 0){
+        res += -vars(i)
+      }else {
+        res += vars(i)
+      }
     }
     return res;
   }
 
-  def genearteProblemMap(possibleVars : List[Int], callback : ISatCallback[Map[Int,Boolean]]){
-    var maxValue  = math.pow(2,possibleVars.size).toInt
+  def genearteProblemMap(possibleVars: List[Int], callback: ISatCallback[Set[Int]]) {
+    var maxValue = math.pow(2, possibleVars.size).toInt
     //try to assign values to the selected literals
-    for(i <- 0 until maxValue){
-      var subproblem = createMap(possibleVars, i)
-      callback apply subproblem     
+    for (i <- 0 until maxValue) {
+      //i from 0 to 4 (eg: possibleVars.size = 2)
+      var subproblem = createMap(possibleVars, toBinary(i, possibleVars.size))
+      callback apply subproblem
     }
   }
-
 
 
   /**
@@ -82,22 +89,35 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    * @param literals variableVars variables
    * @param savePath where to save (file name) the subproblem definition.
    */
-  def saveProblemSplit(literals: Map[Int, Boolean], savePath: String) {
-    log.info(s"Saving sat string: ${createSatString(literals)}")
+  def saveProblemSplit(literals: Set[Int], savePath: String) {
+    var saveStr = createSatString(literals)
     val fs = FileSystem.get(new Configuration())
-    var out: FSDataOutputStream = fs.create(new Path(savePath));
 
-    out.writeBytes(createSatString(literals));
-    out.flush();
-    out.close();
+    try{
+      var breader=new BufferedReader(new InputStreamReader(fs.open(new Path(savePath))));
+      var l = breader.readLine();
+      while (l != null){
+        saveStr = saveStr + "\n" + l;
+        l = breader.readLine()
+      }
+      breader.close()
+    } catch {
+      case e : Throwable => log.error("Error reading file")
+    }
+
+    var br = new BufferedWriter(new OutputStreamWriter(fs.create(new Path(savePath))));
+    br.write(saveStr);
+    br.flush()
+    br.close()
+
+
   }
 
   //eg: for Map(1 -> true, 2->false, 3->false) ===> definition = "1 -2 -3"
-  def createSatString(literals : Map[Int, Boolean]) : String =
+  def createSatString(literals: Set[Int]): String =
     literals
-      .keySet
       .foldLeft("")((varStr, b) =>
-      varStr + " " + (if (literals(b)) b else -b).toString)
+      varStr + " " + b)
 
   /**
    * Converts a int value to a binary string of @digits digits.

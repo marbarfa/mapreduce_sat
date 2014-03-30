@@ -22,6 +22,9 @@ object SatReader extends ISatReader with SatLoggingUtils{
     var numberOfVars = 0;
 
     // read problem instance from file.
+    try{
+
+
     for (line <- Source.fromFile(new File(instance_path)).getLines()) {
       println(s"Reading line: $line");
       //ignore commented lines
@@ -47,6 +50,10 @@ object SatReader extends ISatReader with SatLoggingUtils{
           }
         })
       }
+    }
+
+    }catch {
+      case e : Throwable => log.error(s"Error reading sat problem for file: ${instance_path}")
     }
     formula.n = numberOfVars;
     formula.m = clauses;

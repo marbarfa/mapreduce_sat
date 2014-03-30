@@ -8,20 +8,16 @@ class Clause {
   var literals : List[Int] = List[Int]()
 
   /**
+   * Eg: literals = (1,-2,3), vars = (1,2,-6,10,-12)
+   * vars.contains(1) = true => Clause is TRUE.
    * @return true if the clause is satisfiable.
    */
-  def isSatisfasiable(vars : Map[Int, Boolean]) : Boolean = {
+  def isSatisfasiable(vars : Set[Int]) : Boolean = {
     var res = false
     for (l <- literals){
-        res = res || getBoolValue(l, vars)
+        res = res || vars.contains(l)
     }
     return res
-  }
-  
-  def getBoolValue(l: Int, vars : Map[Int, Boolean]) : Boolean = {
-    if (vars.contains(math.abs(l)))
-      return ((l>0) && vars(l)) || ((l<0) && vars(l))
-    return true;  
   }
 
 }

@@ -39,7 +39,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
    * @param clause
    * @param literals
    */
-  def addLiteralsToDB(clause: Clause, literals: Map[Int, Boolean]) {
+  def addLiteralsToDB(clause: Clause, literals: Set[Int]) {
     var key = literalMapToDBKey(literals)
     log.info(s"False combination of literals: ${key}")
 
@@ -58,25 +58,28 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
   override def map(key: LongWritable, value: Text, context: Context) {
     var d = CacheHelper.depth
     log.info(s"Starting mapper with key $key, value: ${value.toString}, depth: $d")
-    var fixedLiterals: Map[Int, Boolean] =  SatMapReduceHelper.parseInstanceDef(value.toString)
+    var fixedLiterals: Set[Int] =  SatMapReduceHelper.parseInstanceDef(value.toString)
 
-    var possibleVars: List[Int] = SatMapReduceHelper.generateProblemSplit(fixedLiterals.keySet.toList, formula.n, d)
+    var possibleVars: List[Int] = SatMapReduceHelper.generateProblemSplit(fixedLiterals.toList, formula.n, d)
+    log.info(s"Mapper possible vars: ${possibleVars.toString()}")
 
+    SatMapReduceHelper.genearteProblemMap(possibleVars, new ISatCallback[Set[Int]] {
+      override def apply(subproblem: Set[Int]) = {
+        var problemDef = fixedLiterals ++ subproblem
+        log.info(s"Checking subproblem: ${subproblem.toString()} | " +
+          s"fixed: ${fixedLiterals.toString()} | " +
+          s"problemDef: ${problemDef.toString}")
 
-    SatMapReduceHelper.genearteProblemMap(possibleVars, new ISatCallback[Map[Int, Boolean]] {
-      override def apply(subproblem: Map[Int, Boolean]) = {
-        log.info(s"Checking subproblem: ${literalMapToDBKey(subproblem)}")
-
-        if (!existsInKnowledgeBase(subproblem)) {
-          var satisfasiable = formula.isSatisfasiable(subproblem)
+        if (!existsInKnowledgeBase(problemDef)) {
+          var satisfasiable = formula.isSatisfasiable(problemDef)
           if (!satisfasiable) {
             log.info ("Subproblem not a valid subsolution")
             //add variable combination to knowledge base.
-            var clauses = formula.getFalseClauses(subproblem)
-            clauses.foreach(clause => addLiteralsToDB(clause, subproblem));
+            var clauses = formula.getFalseClauses(problemDef)
+            clauses.foreach(clause => addLiteralsToDB(clause, problemDef));
           } else {
             //output key="fixed", value="subproblem"
-            var satString = SatMapReduceHelper.createSatString(fixedLiterals ++ subproblem)
+            var satString = SatMapReduceHelper.createSatString(subproblem)
             log.info (s"Subproblem is a valid subsolution, output: $satString")
             context.write(value, new Text(satString.getBytes));
           }
@@ -85,11 +88,13 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
     })
   }
 
-  private def existsInKnowledgeBase(vars: Map[Int, Boolean]): Boolean = {
+  private def existsInKnowledgeBase(vars: Set[Int]): Boolean = {
     var varkey: String = literalMapToDBKey(vars)
+    log.info(s"Searching for key $varkey")
     try {
       val result: Result = table.get(new Get(varkey.getBytes))
-      if (result != null) {
+      if (result != null && result.getRow !=null) {
+        log.info(s"Key found in db: ${result.toString} | row: ${result.getRow} | exists? ${result.getExists.toString}")
         return true;
       }
     } catch {
