@@ -26,7 +26,6 @@ object SatReader extends ISatReader with SatLoggingUtils{
 
 
     for (line <- Source.fromFile(new File(instance_path)).getLines()) {
-      println(s"Reading line: $line");
       //ignore commented lines
       if (!line.startsWith("#")) {
         //count clauses and variables.
@@ -57,7 +56,7 @@ object SatReader extends ISatReader with SatLoggingUtils{
     }
     formula.n = numberOfVars;
     formula.m = clauses;
-    log.info(s"Problem instance read successfully: n=${formula.n}, m=${formula.m}")
+    log.debug(s"Problem instance read successfully: n=${formula.n}, m=${formula.m}")
 
 
     return formula;
@@ -68,7 +67,7 @@ object SatReader extends ISatReader with SatLoggingUtils{
    * @return
    */
   def readSolution() : Boolean = {
-    log.info("Trying to read a 3SAT solution")
+    log.debug("Trying to read a 3SAT solution")
     var res = true;
     try{
       res  = Source.fromFile(new File(SatMapReduceConstants.sat_solution_path)).getLines().size > 0

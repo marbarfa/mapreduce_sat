@@ -40,15 +40,15 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
       var end = false;
       while (finishedOk && !end){
         if (SatReader.readSolution()) {
-          log.info(s"Solution file found!, finishing algorithm....")
+          log.debug(s"Solution file found!, finishing algorithm....")
           //job ended with solution found!
           //save solution to output.
-          log.info(s"Rename/Move from ${SatMapReduceConstants.sat_solution_path} to ${args(1)}")
+          log.debug(s"Rename/Move from ${SatMapReduceConstants.sat_solution_path} to ${args(1)}")
           val fs = FileSystem.get(new Configuration())
           fs.rename(new Path(SatMapReduceConstants.sat_solution_path), new Path(args(1)));
           end = true;
         } else {
-          log.info (s"Solution not found, starting iteration ${job.iteration + 1}")
+          log.debug (s"Solution not found, starting iteration ${job.iteration + 1}")
           //solution not found yet => start next iteration.(input = previous output, output = new tmp
           job = createNewJob(job.output, SatMapReduceConstants.sat_tmp_folder_output + (job.iteration + 1), job.iteration + 1)
           finishedOk = job.waitForCompletion(true);

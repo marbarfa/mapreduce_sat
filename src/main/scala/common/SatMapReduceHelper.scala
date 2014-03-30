@@ -21,7 +21,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    * @return
    */
   def generateProblemSplit(fixedVars: List[Int], n: Int, amount: Int): List[Int] = {
-    log.info(s"Generating subproblem split. Fixed: ${fixedVars.toString()}, n: $n, amount: $amount")
+    log.debug(s"Generating subproblem split. Fixed: ${fixedVars.toString()}, n: $n, amount: $amount")
     var variables: List[Int] = List[Int]();
     (1 to n)
       .toStream
@@ -43,7 +43,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    * @return
    */
   def parseInstanceDef(instance: String): Set[Int] = {
-    log.info(s"Parsing instance def: $instance")
+    log.debug(s"Parsing instance def: $instance")
     instance.trim
       .split(" ")
       .map(x => Integer.parseInt(x))

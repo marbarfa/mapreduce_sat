@@ -30,7 +30,7 @@ class SatMapReduceReducer extends Reducer[Text,Text,NullWritable,Text] with Conv
   }
 
   def saveSolution(solutionMap: Set[Int]) = {
-    log.info(s"Saving solution ${solutionMap.toString()} to ${SatMapReduceConstants.sat_solution_path}")
+    log.debug(s"Saving solution ${solutionMap.toString()} to ${SatMapReduceConstants.sat_solution_path}")
     //save solution to file.
     SatMapReduceHelper.saveProblemSplit(solutionMap, SatMapReduceConstants.sat_solution_path)
   }
@@ -39,13 +39,13 @@ class SatMapReduceReducer extends Reducer[Text,Text,NullWritable,Text] with Conv
        values.asScala.foreach(v => {
          var literalDefinition = SatMapReduceHelper.parseInstanceDef(key.toString.trim + " " + v.toString.trim)
           if (formula.n == literalDefinition.size) {
-            log.info(s"All literals are set, possible solution found!: ${key.toString.trim + " " + v.toString.trim}")
+            log.debug(s"All literals are set, possible solution found!: ${key.toString.trim + " " + v.toString.trim}")
             //all literals are set.
             if (formula.isSatisfasiable(literalDefinition)) {
               log.info(s"Solution found = ${literalDefinition.toString()}!!!")
               saveSolution(literalDefinition);
             } else {
-              log.info(s"Solution ${literalDefinition.toString()} not satisfasiable!")
+              log.debug(s"Solution ${literalDefinition.toString()} not satisfasiable!")
             }
           }else{
             //still a partial solution
