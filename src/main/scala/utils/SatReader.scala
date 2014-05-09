@@ -26,28 +26,32 @@ object SatReader extends ISatReader with SatLoggingUtils{
 
 
     for (line <- Source.fromFile(new File(instance_path)).getLines()) {
-      //ignore commented lines
-      if (!line.startsWith("#")) {
-        //count clauses and variables.
-        clauses += 1;
-        var clause = new Clause
-        formula.clauses = clause :: formula.clauses
-        //read each var of the current clause.
-        line.split(" ").foreach(v => {
-          try {
-            val readVar = Integer.parseInt(v)
-            if (math.abs(readVar) > numberOfVars) {
-              numberOfVars = Math.abs(readVar)
+      //ignore commented lines => starting with # or with the character 'c'
+      if (!line.startsWith("#") || line.startsWith("c")) {
+        if (line.startsWith("p")){
+          //it has a problem definition => initialize.
+          var problemDef : Array[String] = line.split(" ")
+          clauses = problemDef.apply(problemDef.size-1).toInt
+          numberOfVars = problemDef.apply(problemDef.size-2).toInt
+        }else{
+          var clause = new Clause
+          formula.clauses = clause :: formula.clauses
+          //read each var of the current clause.
+          line.split(" ").foreach(v => {
+            try {
+              val readVar = Integer.parseInt(v)
+              if (readVar != 0){    // ignore 0 literals => should be the last one
+                clause.literals ::= readVar
+                formula.addClauseOfVar(readVar, clause);
+              }
+            } catch {
+              case t: Throwable => {
+                log.error("Error parsing problem instance.", t);
+                throw t;
+              }
             }
-            clause.literals ::= readVar
-            formula.addClauseOfVar(readVar, clause);
-          } catch {
-            case t: Throwable => {
-              log.error("Error parsing problem instance.", t);
-              throw t;
-            }
-          }
-        })
+          })
+        }
       }
     }
 
@@ -56,7 +60,7 @@ object SatReader extends ISatReader with SatLoggingUtils{
     }
     formula.n = numberOfVars;
     formula.m = clauses;
-    log.debug(s"Problem instance read successfully: n=${formula.n}, m=${formula.m}")
+    log.info(s"Problem instance read successfully: n=${formula.n}, m=${formula.m}")
 
 
     return formula;
