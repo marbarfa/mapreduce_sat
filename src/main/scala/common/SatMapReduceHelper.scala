@@ -62,9 +62,9 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
   def createMap(vars: List[Int], intBinaryValue: String): Set[Int] = {
     var res = new HashSet[Int]()
     for (i <- 0 until vars.size) {
-      if (Integer.parseInt(intBinaryValue.charAt(i).toString) == 0){
+      if (Integer.parseInt(intBinaryValue.charAt(i).toString) == 0) {
         res += -vars(i)
-      }else {
+      } else {
         res += vars(i)
       }
     }
@@ -75,9 +75,13 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
     var maxValue = math.pow(2, possibleVars.size).toInt
     //try to assign values to the selected literals
     for (i <- 0 until maxValue) {
-      //i from 0 to 4 (eg: possibleVars.size = 2)
-      var subproblem = createMap(possibleVars, toBinary(i, possibleVars.size))
-      callback apply subproblem
+      try {
+        //i from 0 to 4 (eg: possibleVars.size = 2)
+        var subproblem = createMap(possibleVars, toBinary(i, possibleVars.size))
+        callback apply subproblem
+      } catch {
+        case t: Throwable => log.error(s"Error creating problem map for $i, possibleVars: ${possibleVars.toString()}")
+      }
     }
   }
 
@@ -93,16 +97,16 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
     var saveStr = createSatString(literals)
     val fs = FileSystem.get(new Configuration())
 
-    try{
-      var breader=new BufferedReader(new InputStreamReader(fs.open(new Path(savePath))));
+    try {
+      var breader = new BufferedReader(new InputStreamReader(fs.open(new Path(savePath))));
       var l = breader.readLine();
-      while (l != null){
+      while (l != null) {
         saveStr = saveStr + "\n" + l;
         l = breader.readLine()
       }
       breader.close()
     } catch {
-      case e : Throwable => log.error("Error reading file")
+      case e: Throwable => log.error("Error reading file problem instance file", e)
     }
 
     var br = new BufferedWriter(new OutputStreamWriter(fs.create(new Path(savePath))));

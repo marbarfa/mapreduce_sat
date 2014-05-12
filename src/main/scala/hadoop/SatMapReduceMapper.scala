@@ -19,6 +19,7 @@ import org.apache.hadoop.mapreduce.Mapper
  */
 class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with ConvertionHelper with SatLoggingUtils {
   var formula: Formula = _
+  var numberOfSplits : Int = _
   var table: HTable = _
   type Context = Mapper[LongWritable, Text, Text, Text]#Context
 
@@ -28,6 +29,8 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
     if (formula == null) {
       formula = CacheHelper.sat_instance(context.getConfiguration.get("problem_path"))
     }
+    numberOfSplits = context.getConfiguration.get("numbers_of_mappers").toInt
+
 
     // Get HBase table of invalid variable combination
     val hconf = HBaseConfiguration.create
@@ -60,7 +63,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
     log.debug(s"Starting mapper with key $key, value: ${value.toString}, depth: $d")
     var fixedLiterals: Set[Int] =  SatMapReduceHelper.parseInstanceDef(value.toString)
 
-    var possibleVars: List[Int] = SatMapReduceHelper.generateProblemSplit(fixedLiterals.toList, formula.n, d)
+    var possibleVars: List[Int] = SatMapReduceHelper.generateProblemSplit(fixedLiterals.toList, formula.n, numberOfSplits)
     log.debug(s"Mapper possible vars: ${possibleVars.toString()}")
 
     SatMapReduceHelper.genearteProblemMap(possibleVars, new ISatCallback[Set[Int]] {

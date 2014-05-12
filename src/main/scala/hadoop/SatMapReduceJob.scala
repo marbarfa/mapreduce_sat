@@ -27,15 +27,21 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
   def run(args: Array[String]): Int = {
 
     //retrieve problem partition file
-    if (args.size != 2) {
+    if (args.size != 3) {
       log.info(s"Wrong number of inputs. The app needs 2 parameters: \n" +
         "input_path output_path with:\n" +
         "input_path : where input files are located.\n" +
-        "output_path: where output files will be saved\n")
+        "output_path: where output files will be saved\n"+
+        "number of splits: how many mappers to create in each iteration.")
     } else {
       log.info("Starting mapreduce algorithm...")
       instance_path = args(0)
-      var job : SatJob = createInitJob(instance_path);
+      var numberOfSplitPerMapper : Int = args(2).toInt
+
+      var job : SatJob = createInitJob(instance_path, numberOfSplitPerMapper);
+
+      job.getConfiguration.set("numbers_of_mappers", numberOfSplitPerMapper.toString);
+
       var finishedOk: Boolean = job.waitForCompletion(true)
       var end = false;
       while (finishedOk && !end){
@@ -51,6 +57,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
           log.debug (s"Solution not found, starting iteration ${job.iteration + 1}")
           //solution not found yet => start next iteration.(input = previous output, output = new tmp
           job = createNewJob(job.output, SatMapReduceConstants.sat_tmp_folder_output + (job.iteration + 1), job.iteration + 1)
+          job.getConfiguration.set("numbers_of_mappers", numberOfSplitPerMapper.toString);
           finishedOk = job.waitForCompletion(true);
         }
       }
@@ -66,15 +73,15 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
 
   }
 
-  private def createInitJob(input: String): SatJob = {
+  private def createInitJob(input: String, numberOfMappers : Int): SatJob = {
     var time = new Date()
-    var input_path = SatMapReduceConstants.sat_tmp_folder_input + s"${time.getTime}"
+    var input_path = SatMapReduceConstants.sat_tmp_folder_input + s"_${time.getTime}"
     var job = createNewJob(input_path, SatMapReduceConstants.sat_tmp_folder_output + "_1", 1);
 
     var formula = SatReader.read3SatInstance(input);
 
     //generate problem split -> first choose which literals use as variables and how many.
-    var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), formula.n, SatMapReduceConstants.variable_literals_amount);
+    var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), formula.n, numberOfMappers);
     SatMapReduceHelper.genearteProblemMap(problemSplitVars, new ISatCallback[Set[Int]] {
       override def apply(t: Set[Int]) =
       //save problem definition in the input path to be used as input in the MapReduce algorithm.

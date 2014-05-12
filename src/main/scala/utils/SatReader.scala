@@ -56,7 +56,10 @@ object SatReader extends ISatReader with SatLoggingUtils{
     }
 
     }catch {
-      case e : Throwable => log.error(s"Error reading sat problem for file: ${instance_path}")
+      case e : Throwable => {
+        log.error(s"Error reading sat problem for file: ${instance_path}", e)
+        throw e;
+      }
     }
     formula.n = numberOfVars;
     formula.m = clauses;
