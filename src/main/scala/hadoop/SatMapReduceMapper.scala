@@ -60,7 +60,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
    */
   override def map(key: LongWritable, value: Text, context: Context) {
     var d = CacheHelper.depth
-    log.debug(s"Starting mapper with key $key, value: ${value.toString}, depth: $d")
+    log.info(s"Starting mapper with key $key, value: ${value.toString}, depth: $d")
     var fixedLiterals: Set[Int] =  SatMapReduceHelper.parseInstanceDef(value.toString)
 
     var possibleVars: List[Int] = SatMapReduceHelper.generateProblemSplit(fixedLiterals.toList, formula.n, numberOfSplits)
@@ -83,7 +83,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
           } else {
             //output key="fixed", value="subproblem"
             var satString = SatMapReduceHelper.createSatString(subproblem)
-            log.debug (s"Subproblem is a valid subsolution, output: $satString")
+            log.info (s"Subproblem is a valid subsolution, output: $satString")
             context.write(value, new Text(satString.getBytes));
           }
         }

@@ -45,7 +45,7 @@ class SatMapReduceReducer extends Reducer[Text,Text,NullWritable,Text] with Conv
               log.info(s"Solution found = ${literalDefinition.toString()}!!!")
               saveSolution(literalDefinition);
             } else {
-              log.debug(s"Solution ${literalDefinition.toString()} not satisfasiable!")
+              log.info(s"Solution ${literalDefinition.toString()} not satisfasiable!")
             }
           }else{
             //still a partial solution
