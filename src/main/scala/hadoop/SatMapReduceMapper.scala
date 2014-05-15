@@ -37,6 +37,13 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
     table = new HTable(hconf, "var_tables")
   }
 
+  protected override def cleanup(context: Context){
+    formula = null;
+    table = null;
+  }
+
+
+
   /**
    * This method adds the combination of literals in clause to the DB (because make that clause false).
    * @param clause

@@ -15,7 +15,6 @@ object CacheHelper {
    */
   def putSatInstance(job : Job, problem_path : String) = {
     job.addCacheArchive(new URI(problem_path))
-    job.getConfiguration.set("problem_path", problem_path);
   }
 
 

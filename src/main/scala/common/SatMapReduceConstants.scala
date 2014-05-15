@@ -7,10 +7,10 @@ object SatMapReduceConstants {
   val zookeper_instance_path: String = "sat_problem_definition"
 
 
-  val sat_tmp_folder_input = "sat_tmp_input";
-  val sat_tmp_folder_output = "sat_tmp_output";
+  val sat_tmp_folder_input = "sat_tmp/input";
+  val sat_tmp_folder_output = "sat_tmp/output";
 
-  val sat_solution_path: String = "sat_solution.txt"
+  val sat_solution_path: String = "sol_"
 
   val variable_literals_amount = 2
 

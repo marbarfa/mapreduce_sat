@@ -27,17 +27,18 @@ object SatReader extends ISatReader with SatLoggingUtils{
 
     for (line <- Source.fromFile(new File(instance_path)).getLines()) {
       //ignore commented lines => starting with # or with the character 'c'
-      if (!line.startsWith("#") || line.startsWith("c")) {
+      if (!line.startsWith("#") && !line.startsWith("c") && !line.isEmpty && !line.equals("%")) {
+//        log.info(s"Processing line $line")
         if (line.startsWith("p")){
           //it has a problem definition => initialize.
-          var problemDef : Array[String] = line.split(" ")
-          clauses = problemDef.apply(problemDef.size-1).toInt
-          numberOfVars = problemDef.apply(problemDef.size-2).toInt
+          var problemDef : Array[String] = line.trim().split(" ")
+          clauses = problemDef.apply(problemDef.size-1).trim().toInt
+          numberOfVars = problemDef.apply(problemDef.size-2).trim().toInt
         }else{
           var clause = new Clause
           formula.clauses = clause :: formula.clauses
           //read each var of the current clause.
-          line.split(" ").foreach(v => {
+          line.trim().split(" ").foreach(v => {
             try {
               val readVar = Integer.parseInt(v)
               if (readVar != 0){    // ignore 0 literals => should be the last one
@@ -73,11 +74,12 @@ object SatReader extends ISatReader with SatLoggingUtils{
    * This method returns true if a solution is found.
    * @return
    */
-  def readSolution() : Boolean = {
-    log.debug("Trying to read a 3SAT solution")
+  def readSolution(satProblem: String) : Boolean = {
+    log.info("Trying to read a 3SAT solution")
     var res = true;
     try{
-      res  = Source.fromFile(new File(SatMapReduceConstants.sat_solution_path)).getLines().size > 0
+
+      res  = Source.fromFile(new File(SatMapReduceConstants.sat_solution_path + satProblem)).getLines().size > 0
     } catch {
       case e : FileNotFoundException => res = false;
     }

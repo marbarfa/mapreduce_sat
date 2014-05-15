@@ -95,26 +95,36 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    */
   def saveProblemSplit(literals: Set[Int], savePath: String) {
     var saveStr = createSatString(literals)
-    val fs = FileSystem.get(new Configuration())
+    saveStringToFile(saveStr, savePath, true);
+  }
 
-    try {
-      var breader = new BufferedReader(new InputStreamReader(fs.open(new Path(savePath))));
-      var l = breader.readLine();
-      while (l != null) {
-        saveStr = saveStr + "\n" + l;
-        l = breader.readLine()
+
+  /**
+   * Saves a string @str to a file in @savePath.
+   * If @append is true => appends the @str string to the file if it exists.
+   * @param savePath where to save (file name) the subproblem definition.
+   */
+  def saveStringToFile(str : String, savePath: String, append : Boolean) {
+    val fs = FileSystem.get(new Configuration())
+    var saveStr = str
+    if (append){
+      try {
+        var breader = new BufferedReader(new InputStreamReader(fs.open(new Path(savePath))));
+        var l = breader.readLine();
+        while (l != null) {
+          saveStr = saveStr + "\n" + l;
+          l = breader.readLine()
+        }
+        breader.close()
+      } catch {
+        case e: Throwable => //do nothing.
       }
-      breader.close()
-    } catch {
-      case e: Throwable => log.error("Error reading file problem instance file", e)
     }
 
     var br = new BufferedWriter(new OutputStreamWriter(fs.create(new Path(savePath))));
     br.write(saveStr);
     br.flush()
     br.close()
-
-
   }
 
   //eg: for Map(1 -> true, 2->false, 3->false) ===> definition = "1 -2 -3"

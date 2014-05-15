@@ -1,6 +1,6 @@
 package main.scala.hadoop
 
-import java.io.{OutputStreamWriter, BufferedWriter}
+import java.io.BufferedWriter
 import java.util.Date
 import main.scala.common.{SatMapReduceConstants, SatMapReduceHelper}
 import main.scala.utils.{SatLoggingUtils, CacheHelper, ISatCallback, SatReader}
@@ -23,6 +23,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
 
   var instance_path : String = _
   var startTime : Long = _
+  var numberOfMappers : Int = _
 
   /**
    * Main SAT program.
@@ -33,11 +34,15 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
 
     //retrieve problem partition file
     if (args.size != 3) {
-      log.info(s"Wrong number of inputs. The app needs 2 parameters: \n" +
-        "input_path output_path with:\n" +
-        "input_path : where input files are located.\n" +
-        "output_path: where output files will be saved\n"+
-        "number of splits: how many mappers to create in each iteration.")
+      log.info(
+        s"""
+           |Wrong number of inputs. The app needs 2 parameters:
+           |input_path output_path with:
+           |input_path : where input files are located.
+           |output_path: where output files will be saved
+           |number of splits: how many mappers to create in each iteration.
+         """.stripMargin
+        )
     } else {
 
       log.info("Starting mapreduce algorithm...")
@@ -46,30 +51,25 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
 
       startTime = System.currentTimeMillis();
       instance_path = args(0)
-      var numberOfSplitPerMapper : Int = args(2).toInt
+      numberOfMappers = args(2).toInt
 
       var job : SatJob = createInitJob(instance_path, 2);
 
-      job.getConfiguration.set("numbers_of_mappers", numberOfSplitPerMapper.toString);
-
-      startTime = System.currentTimeMillis();
       var finishedOk: Boolean = job.waitForCompletion(true)
       var end = false;
       while (finishedOk && !end){
-        if (SatReader.readSolution()) {
+        if (SatReader.readSolution(instance_path) || job.getConfiguration.get("sol_found") != null) {
           log.debug(s"Solution file found!, finishing algorithm....")
           //job ended with solution found!
           //save solution to output.
           log.debug(s"Rename/Move from ${SatMapReduceConstants.sat_solution_path} to ${args(1)}")
           val fs = FileSystem.get(new Configuration())
-          fs.rename(new Path(SatMapReduceConstants.sat_solution_path), new Path(args(1)));
-          saveStatistics(args(0))
+          fs.rename(new Path(SatMapReduceConstants.sat_solution_path + instance_path), new Path(args(1)));
           end = true;
         } else {
           log.debug (s"Solution not found, starting iteration ${job.iteration + 1}")
           //solution not found yet => start next iteration.(input = previous output, output = new tmp
-          job = createNewJob(job.output, SatMapReduceConstants.sat_tmp_folder_output + (job.iteration + 1), job.iteration + 1)
-          job.getConfiguration.set("numbers_of_mappers", numberOfSplitPerMapper.toString);
+          job = createNewJob(job.output, SatMapReduceConstants.sat_tmp_folder_output + "_" + (job.iteration + 1), job.iteration + 1)
           finishedOk = job.waitForCompletion(true);
         }
       }
@@ -91,7 +91,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     log.info("Deleting output folders...")
     try {
       val fs = FileSystem.get(new Configuration())
-      fs.delete(new Path(output), true);
+      fs.delete(new Path("sat_tmp"), true);
     } catch {
       case e : Throwable  => //do nothing in all cases.
     }
@@ -108,18 +108,6 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     }
 
   }
-
-  private def saveStatistics(satProblem : String){
-    var saveStr = s"Sat problem solved in ${(startTime-System.currentTimeMillis())/1000} seconds\n"
-    saveStr = saveStr + s"Sat problem: $satProblem\n"
-    val fs = FileSystem.get(new Configuration())
-
-    var br = new BufferedWriter(new OutputStreamWriter(fs.create(new Path(SatMapReduceConstants.sat_solution_path + "_statistics"))));
-    br.write(saveStr);
-    br.flush()
-    br.close()
-  }
-
 
   private def createInitJob(input: String, numberOfMappers : Int): SatJob = {
     var time = new Date()
@@ -151,6 +139,13 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
 
     job.setOutputKeyClass(classOf[Text])
     job.setOutputValueClass(classOf[Text])
+
+    job.getConfiguration.set("iteration", iteration.toString);
+    job.getConfiguration.set("numbers_of_mappers", numberOfMappers.toString);
+    job.getConfiguration.set("start_miliseconds", startTime.toString);
+    job.getConfiguration.set("problem_path", instance_path);
+
+
     //use NLineInputFormat => each mapper will receive one line of the file
 
     FileInputFormat.setInputPaths(job, new Path(input))
