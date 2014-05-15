@@ -1,14 +1,15 @@
 package main.scala.utils
 
-import java.io.{FileNotFoundException, File}
 import main.scala.common.SatMapReduceConstants
 import main.scala.domain.{Formula, Clause}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{Path, FileSystem}
 import scala.io.Source
 
 /**
  * Created by marbarfa on 3/2/14.
  */
-object SatReader extends ISatReader with SatLoggingUtils{
+object SatReader extends ISatReader with SatLoggingUtils {
 
 
   /**
@@ -22,42 +23,43 @@ object SatReader extends ISatReader with SatLoggingUtils{
     var numberOfVars = 0;
 
     // read problem instance from file.
-    try{
+    try {
+      val fs = FileSystem.get(new Configuration())
 
-
-    for (line <- Source.fromFile(new File(instance_path)).getLines()) {
-      //ignore commented lines => starting with # or with the character 'c'
-      if (!line.startsWith("#") && !line.startsWith("c") && !line.isEmpty && !line.equals("%")) {
-//        log.info(s"Processing line $line")
-        if (line.startsWith("p")){
-          //it has a problem definition => initialize.
-          var problemDef : Array[String] = line.trim().split(" ")
-          clauses = problemDef.apply(problemDef.size-1).trim().toInt
-          numberOfVars = problemDef.apply(problemDef.size-2).trim().toInt
-        }else{
-          var clause = new Clause
-          formula.clauses = clause :: formula.clauses
-          //read each var of the current clause.
-          line.trim().split(" ").foreach(v => {
-            try {
-              val readVar = Integer.parseInt(v)
-              if (readVar != 0){    // ignore 0 literals => should be the last one
-                clause.literals ::= readVar
-                formula.addClauseOfVar(readVar, clause);
+      for (line <- Source.fromInputStream(fs.open(new Path(instance_path))).getLines()) {
+        //ignore commented lines => starting with # or with the character 'c'
+        if (!line.startsWith("#") && !line.startsWith("c") && !line.isEmpty && !line.equals("%")) {
+          //        log.info(s"Processing line $line")
+          if (line.startsWith("p")) {
+            //it has a problem definition => initialize.
+            var problemDef: Array[String] = line.trim().split(" ")
+            clauses = problemDef.apply(problemDef.size - 1).trim().toInt
+            numberOfVars = problemDef.apply(problemDef.size - 2).trim().toInt
+          } else {
+            var clause = new Clause
+            formula.clauses = clause :: formula.clauses
+            //read each var of the current clause.
+            line.trim().split(" ").foreach(v => {
+              try {
+                val readVar = Integer.parseInt(v)
+                if (readVar != 0) {
+                  // ignore 0 literals => should be the last one
+                  clause.literals ::= readVar
+                  formula.addClauseOfVar(readVar, clause);
+                }
+              } catch {
+                case t: Throwable => {
+                  log.error("Error parsing problem instance.", t);
+                  throw t;
+                }
               }
-            } catch {
-              case t: Throwable => {
-                log.error("Error parsing problem instance.", t);
-                throw t;
-              }
-            }
-          })
+            })
+          }
         }
       }
-    }
 
-    }catch {
-      case e : Throwable => {
+    } catch {
+      case e: Throwable => {
         log.error(s"Error reading sat problem for file: ${instance_path}", e)
         throw e;
       }
@@ -74,14 +76,16 @@ object SatReader extends ISatReader with SatLoggingUtils{
    * This method returns true if a solution is found.
    * @return
    */
-  def readSolution(satProblem: String) : Boolean = {
+  def readSolution(satProblem: String): Boolean = {
     log.info("Trying to read a 3SAT solution")
-    var res = true;
-    try{
+    var res = false;
+    val fs = FileSystem.get(new Configuration())
 
-      res  = Source.fromFile(new File(SatMapReduceConstants.sat_solution_path + satProblem)).getLines().size > 0
+    try {
+      res = Source.fromInputStream(fs.open(new Path(SatMapReduceConstants.sat_solution_path + satProblem)))
+        .getLines().size > 0
     } catch {
-      case e : FileNotFoundException => res = false;
+      case e: Throwable => //do nothing.
     }
 
     return res;

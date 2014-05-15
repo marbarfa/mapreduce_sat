@@ -1,6 +1,5 @@
 package main.scala.hadoop
 
-import java.io.BufferedWriter
 import java.util.Date
 import main.scala.common.{SatMapReduceConstants, SatMapReduceHelper}
 import main.scala.utils.{SatLoggingUtils, CacheHelper, ISatCallback, SatReader}
@@ -33,13 +32,12 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
   def run(args: Array[String]): Int = {
 
     //retrieve problem partition file
-    if (args.size != 3) {
+    if (args.size != 2) {
       log.info(
         s"""
            |Wrong number of inputs. The app needs 2 parameters:
-           |input_path output_path with:
+           |input_path number_of_splits with:
            |input_path : where input files are located.
-           |output_path: where output files will be saved
            |number of splits: how many mappers to create in each iteration.
          """.stripMargin
         )
@@ -47,11 +45,11 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
 
       log.info("Starting mapreduce algorithm...")
       log.info("Cleaning previous information...")
-      cleanup(args(1))
+      cleanup()
 
       startTime = System.currentTimeMillis();
       instance_path = args(0)
-      numberOfMappers = args(2).toInt
+      numberOfMappers = args(1).toInt
 
       var job : SatJob = createInitJob(instance_path, 2);
 
@@ -59,12 +57,13 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
       var end = false;
       while (finishedOk && !end){
         if (SatReader.readSolution(instance_path) || job.getConfiguration.get("sol_found") != null) {
-          log.debug(s"Solution file found!, finishing algorithm....")
+          log.info(s"Solution file found!, finishing algorithm....")
+          log.info(s"Config sol_found value = ${job.getConfiguration.get("sol_found")}")
           //job ended with solution found!
           //save solution to output.
-          log.debug(s"Rename/Move from ${SatMapReduceConstants.sat_solution_path} to ${args(1)}")
-          val fs = FileSystem.get(new Configuration())
-          fs.rename(new Path(SatMapReduceConstants.sat_solution_path + instance_path), new Path(args(1)));
+//          log.info(s"Rename/Move from ${SatMapReduceConstants.sat_solution_path + instance_path} to ${args(1)}")
+//          val fs = FileSystem.get(new Configuration())
+//          fs.rename(new Path(SatMapReduceConstants.sat_solution_path + instance_path), new Path(args(1)));
           end = true;
         } else {
           log.debug (s"Solution not found, starting iteration ${job.iteration + 1}")
@@ -86,7 +85,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
   }
 
 
-  private def cleanup(output: String){
+  private def cleanup(){
     //delete existing output folders.
     log.info("Deleting output folders...")
     try {

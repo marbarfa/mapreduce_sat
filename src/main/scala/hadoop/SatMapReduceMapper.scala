@@ -67,11 +67,14 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
    */
   override def map(key: LongWritable, value: Text, context: Context) {
     var d = CacheHelper.depth
-    log.info(s"Starting mapper with key $key, value: ${value.toString}, depth: $d")
+    var start = System.currentTimeMillis();
+    log.info(s"Starting mapper with key $key, value: ${value.toString}, depth: $numberOfSplits")
     var fixedLiterals: Set[Int] =  SatMapReduceHelper.parseInstanceDef(value.toString)
 
     var possibleVars: List[Int] = SatMapReduceHelper.generateProblemSplit(fixedLiterals.toList, formula.n, numberOfSplits)
     log.debug(s"Mapper possible vars: ${possibleVars.toString()}")
+    var validSubsolutions : Int = 0
+    var invalidSubsolutions : Int = 0
 
     SatMapReduceHelper.genearteProblemMap(possibleVars, new ISatCallback[Set[Int]] {
       override def apply(subproblem: Set[Int]) = {
@@ -83,19 +86,28 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
         if (!existsInKnowledgeBase(problemDef)) {
           var satisfasiable = formula.isSatisfasiable(problemDef)
           if (!satisfasiable) {
+            invalidSubsolutions = invalidSubsolutions+1;
             log.debug ("Subproblem not a valid subsolution")
             //add variable combination to knowledge base.
             var clauses = formula.getFalseClauses(problemDef)
             clauses.foreach(clause => addLiteralsToDB(clause, problemDef));
           } else {
+            validSubsolutions = validSubsolutions+1;
             //output key="fixed", value="subproblem"
             var satString = SatMapReduceHelper.createSatString(subproblem)
-            log.info (s"Subproblem is a valid subsolution, output: $satString")
+            log.debug (s"Subproblem is a valid subsolution, output: $satString")
             context.write(value, new Text(satString.getBytes));
           }
         }
       }
     })
+
+    log.info(
+      s"""
+         |Finishing... ### Mapper Stats ###:
+         |Subsolutions = valid: $validSubsolutions | invalid: $invalidSubsolutions
+         |ExecTime: ${(System.currentTimeMillis() - start)/1000} seconds
+       """.stripMargin);
   }
 
   private def existsInKnowledgeBase(vars: Set[Int]): Boolean = {
@@ -104,7 +116,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
     try {
       val result: Result = table.get(new Get(varkey.getBytes))
       if (result != null && result.getRow !=null) {
-        log.debug(s"Key found in db: ${result.toString} | row: ${result.getRow} | exists? ${result.getExists.toString}")
+        log.info(s"Key found in db: ${result.toString} | row: ${result.getRow} | exists? ${result.getExists.toString}")
         return true;
       }
     } catch {
