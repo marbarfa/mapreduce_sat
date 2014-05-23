@@ -25,35 +25,49 @@ object SatReader extends ISatReader with SatLoggingUtils {
     // read problem instance from file.
     try {
       val fs = FileSystem.get(new Configuration())
-
-      for (line <- Source.fromInputStream(fs.open(new Path(instance_path))).getLines()) {
-        //ignore commented lines => starting with # or with the character 'c'
-        if (!line.startsWith("#") && !line.startsWith("c") && !line.isEmpty && !line.equals("%")) {
-          //        log.info(s"Processing line $line")
-          if (line.startsWith("p")) {
-            //it has a problem definition => initialize.
-            var problemDef: Array[String] = line.trim().split(" ")
-            clauses = problemDef.apply(problemDef.size - 1).trim().toInt
-            numberOfVars = problemDef.apply(problemDef.size - 2).trim().toInt
-          } else {
-            var clause = new Clause
-            formula.clauses = clause :: formula.clauses
-            //read each var of the current clause.
-            line.trim().split(" ").foreach(v => {
-              try {
-                val readVar = Integer.parseInt(v)
-                if (readVar != 0) {
-                  // ignore 0 literals => should be the last one
-                  clause.literals ::= readVar
-                  formula.addClauseOfVar(readVar, clause);
-                }
-              } catch {
-                case t: Throwable => {
-                  log.error("Error parsing problem instance.", t);
-                  throw t;
+      var end = false;
+      for (line <- Source.fromInputStream(fs.open(new Path(instance_path))).getLines() if !end) {
+        if (line.startsWith("%")) {
+          end = true;
+        } else {
+          //ignore commented lines => starting with # or with the character 'c'
+          if (!line.startsWith("#") && !line.startsWith("c") && !line.isEmpty) {
+            //        log.info(s"Processing line $line")
+            if (line.startsWith("p")) {
+              //it has a problem definition => initialize.
+              var problemDef: Array[String] = line.split(" ")
+              for (s <- problemDef if clauses * numberOfVars == 0) {
+                try {
+                  if (numberOfVars == 0)
+                    numberOfVars = s.trim().toInt
+                  else
+                    clauses = s.trim().toInt
+                } catch {
+                  case e: Any => //ignore
                 }
               }
-            })
+            } else {
+              var clause = new Clause
+              //read each var of the current clause.
+              line.trim().split(" ").foreach(v => {
+                try {
+                  val readVar = Integer.parseInt(v)
+                  if (readVar != 0) {
+                    // ignore 0 literals => should be the last one
+                    clause.literals ::= readVar
+                    formula.addClauseOfVar(readVar, clause);
+                  }
+                } catch {
+                  case t: Throwable => {
+                    log.error("Error parsing problem instance.", t);
+                    throw t;
+                  }
+                }
+              })
+              if (clause.literals.size > 0) {
+                formula.clauses = clause :: formula.clauses
+              }
+            }
           }
         }
       }
@@ -67,6 +81,7 @@ object SatReader extends ISatReader with SatLoggingUtils {
     formula.n = numberOfVars;
     formula.m = clauses;
     log.info(s"Problem instance read successfully: n=${formula.n}, m=${formula.m}")
+    log.info(s"Clauses read: ${formula.clauses.size}")
 
 
     return formula;

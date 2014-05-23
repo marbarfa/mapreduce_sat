@@ -2,11 +2,12 @@ package main.scala.hadoop
 
 import main.scala.common.SatMapReduceHelper
 import main.scala.domain.{Formula, Clause}
-import main.scala.utils.{SatLoggingUtils, ConvertionHelper, CacheHelper, ISatCallback}
+import main.scala.utils.{SatLoggingUtils, ConvertionHelper, CacheHelper}
 import org.apache.hadoop.hbase.HBaseConfiguration
-import org.apache.hadoop.hbase.client.{Put, Result, HTable, Get}
+import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapreduce.Mapper
+import scala.collection.JavaConversions._
 
 /**
  *
@@ -19,9 +20,11 @@ import org.apache.hadoop.mapreduce.Mapper
  */
 class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with ConvertionHelper with SatLoggingUtils {
   var formula: Formula = _
-  var numberOfSplits : Int = _
+  var numberOfSplits: Int = _
   var table: HTable = _
   type Context = Mapper[LongWritable, Text, Text, Text]#Context
+
+  var invalidLiterals : Set[Set[Int]] = Set[Set[Int]]()
 
 
   protected override def setup(context: Context) {
@@ -31,17 +34,40 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
     }
     numberOfSplits = context.getConfiguration.get("numbers_of_mappers").toInt
 
-
     // Get HBase table of invalid variable combination
     val hconf = HBaseConfiguration.create
     table = new HTable(hconf, "var_tables")
+
+
+    var scan = new Scan();
+    scan.addColumn("cf".getBytes, "a".getBytes);
+    var scanner = table.getScanner(scan);
+    try {
+      scanner.iterator().toStream.foreach(rr => {
+        var row = rr.getRow.toString
+        log.info(s"Found row $row")
+        var splitrow = row.split("_")
+        var setOfLiterals = Set[Int]
+        splitrow.foreach(s => {
+          try{
+            setOfLiterals = setOfLiterals ++ Set(s.toInt)
+          } catch {
+            case e : Throwable => log.error(s"Error parsing literal", e)
+          }
+        })
+         invalidLiterals = invalidLiterals +++ Set(setOfLiterals)
+      });
+
+    } finally {
+      scanner.close();
+    }
+
   }
 
-  protected override def cleanup(context: Context){
+  protected override def cleanup(context: Context) {
     formula = null;
     table = null;
   }
-
 
 
   /**
@@ -51,10 +77,13 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
    */
   def addLiteralsToDB(clause: Clause, literals: Set[Int]) {
     var key = literalMapToDBKey(literals)
-    log.debug(s"False combination of literals: ${key}")
+    log.info(s"False combination of literals: $key")
 
-    var put = new Put(key.toString.getBytes)
+    var put = new Put((key.toString).getBytes)
     put.add("cf".getBytes, "a".getBytes, clause.toString.getBytes);
+    table.put(put);
+    log.info (s"Key ${key.toString} saved...")
+
   }
 
 
@@ -66,61 +95,96 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
    * @param context
    */
   override def map(key: LongWritable, value: Text, context: Context) {
-    var d = CacheHelper.depth
     var start = System.currentTimeMillis();
     log.info(s"Starting mapper with key $key, value: ${value.toString}, depth: $numberOfSplits")
-    var fixedLiterals: Set[Int] =  SatMapReduceHelper.parseInstanceDef(value.toString)
+    var fixed: Set[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
 
-    var possibleVars: List[Int] = SatMapReduceHelper.generateProblemSplit(fixedLiterals.toList, formula.n, numberOfSplits)
-    log.debug(s"Mapper possible vars: ${possibleVars.toString()}")
-    var validSubsolutions : Int = 0
-    var invalidSubsolutions : Int = 0
-
-    SatMapReduceHelper.genearteProblemMap(possibleVars, new ISatCallback[Set[Int]] {
-      override def apply(subproblem: Set[Int]) = {
-        var problemDef = fixedLiterals ++ subproblem
-        log.debug(s"Checking subproblem: ${subproblem.toString()} | " +
-          s"fixed: ${fixedLiterals.toString()} | " +
-          s"problemDef: ${problemDef.toString}")
-
-        if (!existsInKnowledgeBase(problemDef)) {
-          var satisfasiable = formula.isSatisfasiable(problemDef)
-          if (!satisfasiable) {
-            invalidSubsolutions = invalidSubsolutions+1;
-            log.debug ("Subproblem not a valid subsolution")
-            //add variable combination to knowledge base.
-            var clauses = formula.getFalseClauses(problemDef)
-            clauses.foreach(clause => addLiteralsToDB(clause, problemDef));
-          } else {
-            validSubsolutions = validSubsolutions+1;
-            //output key="fixed", value="subproblem"
-            var satString = SatMapReduceHelper.createSatString(subproblem)
-            log.debug (s"Subproblem is a valid subsolution, output: $satString")
-            context.write(value, new Text(satString.getBytes));
-          }
-        }
-      }
-    })
+    var execStats = searchForLiterals(fixed, Set(), value, context, numberOfSplits);
 
     log.info(
       s"""
-         |Finishing... ### Mapper Stats ###:
-         |Subsolutions = valid: $validSubsolutions | invalid: $invalidSubsolutions
-         |ExecTime: ${(System.currentTimeMillis() - start)/1000} seconds
+         |Finishing... ### Mapper Stats ###
+         |ExecTime: ${(System.currentTimeMillis() - start) / 1000} seconds
+         |Sols found : ${execStats._1} | Pruned: ${execStats._2}
        """.stripMargin);
   }
+
+  def searchForLiterals(fixed: Set[Int], selected: Set[Int], value: Text, context: Context, depth: Int): (Int, Int) = {
+    if (depth == 0) {
+      var satString = SatMapReduceHelper.createSatString(fixed ++ selected)
+      log.debug(s"Subproblem is a valid subsolution, output: $satString")
+      context.write(value, new Text(satString.getBytes));
+      return (1, 0)
+    } else {
+      var subsolsFound = 0
+      var pruned = 0;
+      var fixedSubproblem = fixed ++ selected
+      var l = selectLiteral(fixedSubproblem);
+      if (l != 0) {
+        //recursive part..
+        val subproblem = fixedSubproblem ++ Set(l)
+        if (!evaluateSubproblem(subproblem)) {
+          var clauses = formula.getFalseClauses(subproblem)
+          clauses.foreach(clause => addLiteralsToDB(clause, subproblem));
+          //prune => do not search in this branch.
+          pruned = pruned + 1;
+        } else {
+          var ij = searchForLiterals(fixed, selected ++ Set(l), value, context, depth - 1);
+          subsolsFound = subsolsFound + ij._1
+          pruned = pruned + ij._2
+        }
+
+        val subproblemPositive = fixedSubproblem ++ Set(-l)
+        if (!evaluateSubproblem(subproblemPositive)) {
+          var clauses = formula.getFalseClauses(subproblemPositive)
+          clauses.foreach(clause => addLiteralsToDB(clause, subproblemPositive));
+          //prune => do not search in this branch.
+          pruned = pruned + 1;
+        } else {
+          var ij = searchForLiterals(fixed, selected ++ Set(-l), value, context, depth - 1);
+          subsolsFound = subsolsFound + ij._1
+          pruned = pruned + ij._2
+        }
+      }
+      return (subsolsFound, pruned);
+    }
+  }
+
+  private def evaluateSubproblem(subproblem: Set[Int]): Boolean = {
+    if (!existsInKnowledgeBase(subproblem)) {
+      return formula.isSatisfasiable(subproblem)
+    }
+    return false;
+  }
+
+  private def selectLiteral(vars: Set[Int]): Int = {
+    (1 to formula.n).foreach(x => {
+      if (!vars.contains(x) && !vars.contains(-x)) {
+        return x;
+      }
+    })
+    return 0;
+  }
+
 
   private def existsInKnowledgeBase(vars: Set[Int]): Boolean = {
     var varkey: String = literalMapToDBKey(vars)
     log.debug(s"Searching for key $varkey")
     try {
-      val result: Result = table.get(new Get(varkey.getBytes))
-      if (result != null && result.getRow !=null) {
-        log.info(s"Key found in db: ${result.toString} | row: ${result.getRow} | exists? ${result.getExists.toString}")
+      log.info(s"Searching in DB values $varkey")
+      var g = new Get(varkey.getBytes)
+      var result = table.get(g);
+      var value = result.getValue("cf".getBytes, "a".getBytes)
+
+      if (value!=null){
+        log.info(s"Returned HB value ${value.toString}")
+      }
+      if (value !=null) {
+        log.info(s"Key found in db: ${value.toString} ")
         return true;
       }
     } catch {
-      case t: Throwable => log.error (s"Key not found in DB, error: ${t.getCause}")// variable combination not found.
+      case t: Throwable => log.error(s"Key not found in DB, error: ${t.getCause}") // variable combination not found.
     }
     return false;
 

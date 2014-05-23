@@ -18,7 +18,7 @@ trait ConvertionHelper {
     literals
       .toList
       .sorted.foldLeft("") {
-        (acc, k) => acc + " " + k
+        (acc, k) => acc +"_"+ k
     }
 
 }

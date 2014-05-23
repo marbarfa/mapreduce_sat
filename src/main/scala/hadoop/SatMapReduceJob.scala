@@ -51,7 +51,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
       instance_path = args(0)
       numberOfMappers = args(1).toInt
 
-      var job : SatJob = createInitJob(instance_path, 2);
+      var job : SatJob = createInitJob(instance_path, 3);
 
       var finishedOk: Boolean = job.waitForCompletion(true)
       var end = false;
@@ -70,6 +70,12 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
           //solution not found yet => start next iteration.(input = previous output, output = new tmp
           job = createNewJob(job.output, SatMapReduceConstants.sat_tmp_folder_output + "_" + (job.iteration + 1), job.iteration + 1)
           finishedOk = job.waitForCompletion(true);
+          var tasks = job.getConfiguration.get("mapreduce.job.maps");
+          log.info(s"Job tasks $tasks")
+          if (tasks != null && tasks.equals("0")){
+            log.info(s"Finishing MR job without solutions!.")
+            end = true;
+          }
         }
       }
 
