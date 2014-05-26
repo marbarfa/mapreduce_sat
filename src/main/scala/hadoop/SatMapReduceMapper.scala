@@ -47,15 +47,15 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
         var row = rr.getRow.toString
         log.info(s"Found row $row")
         var splitrow = row.split("_")
-        var setOfLiterals = Set[Int]
+        var setOfLiterals = Set[Int]()
         splitrow.foreach(s => {
           try{
-            setOfLiterals = setOfLiterals ++ Set(s.toInt)
+            setOfLiterals = setOfLiterals + s.toInt
           } catch {
             case e : Throwable => log.error(s"Error parsing literal", e)
           }
         })
-         invalidLiterals = invalidLiterals +++ Set(setOfLiterals)
+         invalidLiterals = invalidLiterals + setOfLiterals
       });
 
     } finally {
@@ -168,23 +168,11 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
 
 
   private def existsInKnowledgeBase(vars: Set[Int]): Boolean = {
-    var varkey: String = literalMapToDBKey(vars)
-    log.debug(s"Searching for key $varkey")
-    try {
-      log.info(s"Searching in DB values $varkey")
-      var g = new Get(varkey.getBytes)
-      var result = table.get(g);
-      var value = result.getValue("cf".getBytes, "a".getBytes)
-
-      if (value!=null){
-        log.info(s"Returned HB value ${value.toString}")
+    var found = false;
+    for(invalidSet <- invalidLiterals if !found){
+      if (invalidSet subsetOf vars){
+        found = true
       }
-      if (value !=null) {
-        log.info(s"Key found in db: ${value.toString} ")
-        return true;
-      }
-    } catch {
-      case t: Throwable => log.error(s"Key not found in DB, error: ${t.getCause}") // variable combination not found.
     }
     return false;
 
