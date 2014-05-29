@@ -20,6 +20,7 @@ object SatReader extends ISatReader with SatLoggingUtils {
   override def read3SatInstance(instance_path: String): Formula = {
     var formula = new Formula();
     var clauses: Int = 0;
+    var clauseIndex : Int = 0;
     var numberOfVars = 0;
 
     // read problem instance from file.
@@ -65,7 +66,9 @@ object SatReader extends ISatReader with SatLoggingUtils {
                 }
               })
               if (clause.literals.size > 0) {
+                clause.id = clauseIndex;
                 formula.clauses = clause :: formula.clauses
+                clauseIndex = clauseIndex+1
               }
             }
           }

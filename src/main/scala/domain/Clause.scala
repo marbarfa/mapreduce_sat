@@ -4,7 +4,7 @@ package main.scala.domain
  * Created by marbarfa on 3/2/14.
  */
 class Clause {
-
+  var id : Int = 0
   var literals : List[Int] = List[Int]()
 
   /**

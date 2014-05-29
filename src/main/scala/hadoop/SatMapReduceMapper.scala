@@ -39,23 +39,23 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
     table = new HTable(hconf, "var_tables")
 
 
-    var scan = new Scan();
-    scan.addColumn("cf".getBytes, "a".getBytes);
-    var scanner = table.getScanner(scan);
+    var scanner = table.getScanner("cf".getBytes, "a".getBytes);
     try {
       scanner.iterator().toStream.foreach(rr => {
-        var row = rr.getRow.toString
-        log.info(s"Found row $row")
-        var splitrow = row.split("_")
+        var rowStr = new String(rr.getRow);
+        log.info(s"Found row $rowStr")
+
+        var splitrow = rowStr.split(" ")
         var setOfLiterals = Set[Int]()
         splitrow.foreach(s => {
           try{
             setOfLiterals = setOfLiterals + s.toInt
           } catch {
-            case e : Throwable => log.error(s"Error parsing literal", e)
+            case e : Throwable => //parsed empty of "_" character.
           }
         })
-         invalidLiterals = invalidLiterals + setOfLiterals
+        log.info(s"Set of literals retrieved from HBase: ${setOfLiterals.toString()}.")
+        invalidLiterals = invalidLiterals + setOfLiterals
       });
 
     } finally {
@@ -76,13 +76,22 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
    * @param literals
    */
   def addLiteralsToDB(clause: Clause, literals: Set[Int]) {
-    var key = literalMapToDBKey(literals)
-    log.info(s"False combination of literals: $key")
+    var key : String = ""
+    key = clause.literals.foldLeft("")((acc, x) => {
+      var l = literals.find(y => y==x || y == -x).getOrElse(0)
+      if (l != 0) {
+          acc + " " + l
+      }else{
+        acc
+      }
+    }).trim;
 
-    var put = new Put((key.toString).getBytes)
+    log.info(s"False combination of literals: [$key] for clause ${clause.id}")
+
+    var put = new Put(key.getBytes)
     put.add("cf".getBytes, "a".getBytes, clause.toString.getBytes);
     table.put(put);
-    log.info (s"Key ${key.toString} saved...")
+    log.info (s"Key [${key}] saved...")
 
   }
 
