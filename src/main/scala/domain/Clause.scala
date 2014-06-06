@@ -12,7 +12,7 @@ class Clause {
    * vars.contains(1) = true => Clause is TRUE.
    * @return true if the clause is satisfiable.
    */
-  def isSatisfasiable(vars : Set[Int]) : Boolean = {
+  def isSatisfasiable(vars : List[Int]) : Boolean = {
     var res = false
     for (l <- literals){
         res = res || vars.contains(l)

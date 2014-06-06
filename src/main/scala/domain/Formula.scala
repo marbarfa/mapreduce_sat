@@ -16,7 +16,7 @@ class Formula {
   /**
    * @return true if the formula is satisfiable
    */
-  def isSatisfasiable(literals: Set[Int]): Boolean = {
+  def isSatisfasiable(literals: List[Int]): Boolean = {
     var res = true
     var affectedClauses = getClauses(literals)
     for (c <- affectedClauses) {
@@ -25,7 +25,7 @@ class Formula {
     return res
   }
 
-  def getClauses(literals : Set[Int]) : List[Clause] =
+  def getClauses(literals : List[Int]) : List[Clause] =
      literals.foldLeft(List[Clause]()) {(list, key) => list ::: clausesOfVars.getOrElse(math.abs(key), List[Clause]())}
 
 
@@ -39,7 +39,7 @@ class Formula {
     clausesOfVars += (literal -> (clause :: clausesOfVars.getOrElse(literal, List[Clause]())))
   }
 
-  def getFalseClauses(literals: Set[Int]): List[Clause] = {
+  def getFalseClauses(literals: List[Int]): List[Clause] = {
     var falseClauses = List[Clause]();
 
     literals.foreach(literal => {

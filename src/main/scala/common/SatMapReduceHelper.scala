@@ -128,7 +128,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
   }
 
   //eg: for Map(1 -> true, 2->false, 3->false) ===> definition = "1 -2 -3"
-  def createSatString(literals: Set[Int]): String =
+  def createSatString(literals: List[Int]): String =
     literals
       .foldLeft("")((varStr, b) =>
       varStr + " " + b)
