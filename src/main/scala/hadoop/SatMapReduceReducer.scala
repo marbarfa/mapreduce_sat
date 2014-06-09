@@ -84,7 +84,6 @@ with SatLoggingUtils with HBaseHelper {
    * @return retuns a literal definition of the solution found or null if no solution could be found.
    */
   private def evaluateSolution(key: String, values: Iterable[Text]): Boolean = {
-    var paths = retrieveLiteralsPaths(key)
     values.foreach(v => {
       var paths = retrieveLiteralsPaths(v.toString)
       paths.foreach(literalCombination => {

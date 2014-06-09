@@ -1,10 +1,10 @@
 package main.scala.common
 
-import java.io._
-import main.scala.utils.{SatLoggingUtils, ISatCallback, ConvertionHelper}
+import java.io.{OutputStreamWriter, BufferedWriter, BufferedReader, InputStreamReader}
+import main.scala.domain.Formula
+import main.scala.utils.{ISatCallback, SatLoggingUtils, ConvertionHelper}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
-import scala.collection.immutable.HashSet
 
 
 /**
@@ -16,14 +16,12 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    * This method returns some random (or not) variables to be used to split the problem
    * among the mappers.
    * eg: if input is (1,2) and there are 10 variables, the return could return List(3,4)
-   * @param fixedVars
-   * @param n
    * @return
    */
-  def generateProblemSplit(fixedVars: List[Int], n: Int, amount: Int): List[Int] = {
-    log.debug(s"Generating subproblem split. Fixed: ${fixedVars.toString()}, n: $n, amount: $amount")
+  def generateProblemSplit(fixedVars: List[Int], amount: Int, formula: Formula): List[Int] = {
+    log.debug(s"Generating subproblem split. Fixed: ${fixedVars.toString()}, n: ${formula.n}, amount: $amount")
     var variables: List[Int] = List[Int]();
-    (1 to n)
+    formula.getLiteralsInOrder()
       .toStream
       .takeWhile(_ => variables.size < amount)
       .foreach(i => {
@@ -42,12 +40,12 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    * @param instance
    * @return
    */
-  def parseInstanceDef(instance: String): Set[Int] = {
+  def parseInstanceDef(instance: String): List[Int] = {
     log.debug(s"Parsing instance def: $instance")
     instance.trim
       .split(" ")
       .map(x => Integer.parseInt(x))
-      .toSet
+      .toList
   }
 
 
@@ -59,19 +57,19 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    * @param intBinaryValue
    * @return
    */
-  def createMap(vars: List[Int], intBinaryValue: String): Set[Int] = {
-    var res = new HashSet[Int]()
+  def createMap(vars: List[Int], intBinaryValue: String): List[Int] = {
+    var res = List[Int]()
     for (i <- 0 until vars.size) {
       if (Integer.parseInt(intBinaryValue.charAt(i).toString) == 0) {
-        res += -vars(i)
+        res = res ++ List(-vars(i))
       } else {
-        res += vars(i)
+        res = res ++ List(vars(i))
       }
     }
     return res;
   }
 
-  def genearteProblemMap(possibleVars: List[Int], callback: ISatCallback[Set[Int]]) {
+  def genearteProblemMap(possibleVars: List[Int], callback: ISatCallback[List[Int]]) {
     var maxValue = math.pow(2, possibleVars.size).toInt
     //try to assign values to the selected literals
     for (i <- 0 until maxValue) {
@@ -93,7 +91,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    * @param literals variableVars variables
    * @param savePath where to save (file name) the subproblem definition.
    */
-  def saveProblemSplit(literals: Set[Int], savePath: String) {
+  def saveProblemSplit(literals: List[Int], savePath: String) {
     var saveStr = createSatString(literals)
     saveStringToFile(saveStr, savePath, true);
   }
@@ -104,10 +102,10 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    * If @append is true => appends the @str string to the file if it exists.
    * @param savePath where to save (file name) the subproblem definition.
    */
-  def saveStringToFile(str : String, savePath: String, append : Boolean) {
+  def saveStringToFile(str: String, savePath: String, append: Boolean) {
     val fs = FileSystem.get(new Configuration())
     var saveStr = str
-    if (append){
+    if (append) {
       try {
         var breader = new BufferedReader(new InputStreamReader(fs.open(new Path(savePath))));
         var l = breader.readLine();

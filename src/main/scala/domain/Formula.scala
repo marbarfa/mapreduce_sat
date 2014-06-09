@@ -13,6 +13,10 @@ class Formula {
   var n: Int = _
   var m: Int = _
 
+  var literalsInOrder : List[Int] = null;
+
+
+
   /**
    * @return true if the formula is satisfiable
    */
@@ -53,6 +57,17 @@ class Formula {
     })
 
     return falseClauses;
+  }
+
+  /**
+   * Order clausesOfVars by how many clauses are related to each literal
+   * @return
+   */
+  def getLiteralsInOrder() : List[Int] = {
+    if (literalsInOrder == null){
+      literalsInOrder = clausesOfVars.toSeq.sortBy(_._2.size).reverse.toList map (x=> x._1)
+    }
+    return literalsInOrder;
   }
 
 }

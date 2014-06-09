@@ -122,9 +122,9 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     var formula = SatReader.read3SatInstance(input);
 
     //generate problem split -> first choose which literals use as variables and how many.
-    var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), formula.n, numberOfMappers);
-    SatMapReduceHelper.genearteProblemMap(problemSplitVars, new ISatCallback[Set[Int]] {
-      override def apply(t: Set[Int]) =
+    var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), numberOfMappers, formula);
+    SatMapReduceHelper.genearteProblemMap(problemSplitVars, new ISatCallback[List[Int]] {
+      override def apply(t: List[Int]) =
       //save problem definition in the input path to be used as input in the MapReduce algorithm.
         SatMapReduceHelper.saveProblemSplit(t, input_path);
     })

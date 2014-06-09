@@ -24,7 +24,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
 
   type Context = Mapper[LongWritable, Text, Text, Text]#Context
 
-  var invalidLiterals: Set[Set[Int]] = Set[Set[Int]]()
+  var invalidLiterals: List[List[Int]] = List[List[Int]]()
 
 
   protected override def setup(context: Context) {
@@ -49,7 +49,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
    * @param clause
    * @param literals
    */
-  def addLiteralsToDB(clause: Clause, literals: Set[Int]) {
+  def addLiteralsToDB(clause: Clause, literals: List[Int]) {
     var key: String = ""
     key = clause.literals.foldLeft("")((acc, x) => {
       var l = literals.find(y => y == x || y == -x).getOrElse(0)
@@ -76,9 +76,9 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
   override def map(key: LongWritable, value: Text, context: Context) {
     var start = System.currentTimeMillis();
     log.info(s"Starting mapper with key $key, value: ${value.toString}, depth: $numberOfSplits")
-    var fixed: Set[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
+    var fixed: List[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
 
-    var execStats = searchForLiterals(fixed, Set(), value, context, numberOfSplits);
+    var execStats = searchForLiterals(fixed, List(), value, context, numberOfSplits);
 
     log.info(
       s"""
@@ -88,7 +88,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
        """.stripMargin);
   }
 
-  def searchForLiterals(fixed: Set[Int], selected: Set[Int], value: Text, context: Context, depth: Int): (Int, Int) = {
+  def searchForLiterals(fixed: List[Int], selected: List[Int], value: Text, context: Context, depth: Int): (Int, Int) = {
     if (depth == 0) {
       var satSelectedLiterals = SatMapReduceHelper.createSatString(selected)
       var satFixedLiterals = SatMapReduceHelper.createSatString(fixed)
@@ -130,15 +130,16 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
     }
   }
 
-  private def evaluateSubproblem(subproblem: Set[Int]): Boolean = {
+  private def evaluateSubproblem(subproblem: List[Int]): Boolean = {
     if (!existsInKnowledgeBase(subproblem)) {
       return formula.isSatisfasiable(subproblem)
     }
     return false;
   }
 
-  private def selectLiteral(vars: Set[Int]): Int = {
-    (1 to formula.n).foreach(x => {
+  private def selectLiteral(vars: List[Int]): Int = {
+    //iterate the literals by order of appearence in clauses.
+    formula.getLiteralsInOrder().foreach(x => {
       if (!vars.contains(x) && !vars.contains(-x)) {
         return x;
       }
@@ -147,10 +148,10 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
   }
 
 
-  private def existsInKnowledgeBase(vars: Set[Int]): Boolean = {
+  private def existsInKnowledgeBase(vars: List[Int]): Boolean = {
     var found = false;
     for (invalidSet <- invalidLiterals if !found) {
-      if (invalidSet subsetOf vars) {
+      if (invalidSet.toSet subsetOf vars.toSet) {
         found = true
       }
     }
