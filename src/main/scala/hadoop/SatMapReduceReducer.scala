@@ -88,7 +88,7 @@ with SatLoggingUtils with HBaseHelper {
       var paths = retrieveLiteralsPaths(v.toString)
       paths.foreach(literalCombination => {
         var sol = literalCombination ++ stringToIntSet(key)
-        if (formula isSatisfasiable sol) {
+        if (formula isSatisfasiable (sol,log)) {
           log.info(s"Solution found = ${sol.toString()}!!!")
           saveSolution(sol);
           return true;

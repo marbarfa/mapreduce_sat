@@ -17,7 +17,7 @@ trait HBaseHelper extends SatLoggingUtils {
 
   protected def retrieveInvalidLiterals: List[List[Int]] = {
     var invalidLiterals = List[List[Int]]()
-    var scanner = table.getScanner("cf".getBytes, "invalid_literals".getBytes);
+    var scanner = table.getScanner("invalid_literals".getBytes, "a".getBytes);
     try {
       scanner.iterator().toStream.foreach(rr => {
         var rowStr = new String(rr.getRow);
@@ -84,7 +84,7 @@ trait HBaseHelper extends SatLoggingUtils {
    */
   protected def retrieveLiteralsPaths(key: String): List[List[Int]] = {
     var litPaths = List[List[Int]]()
-    var scanner = table.getScanner("cf".getBytes, "path".getBytes);
+    var scanner = table.getScanner("path".getBytes, "a".getBytes);
     var hbaseInfo = Map[String, List[String]]()
     try {
       scanner.iterator().toStream.foreach(rr => {
@@ -104,14 +104,14 @@ trait HBaseHelper extends SatLoggingUtils {
 
   def saveToHBaseInvalidLiteral(key: String, value: String) {
     var put = new Put(key.getBytes)
-    put.add("cf".getBytes, "invalid_literals".getBytes, value.getBytes);
+    put.add("invalid_literals".getBytes, "a".getBytes, value.getBytes);
     table.put(put);
     log.info(s"Key [${key}] saved...")
   }
 
   def saveToHBaseLiteralPath(fixedLiterals: String, foundLiterals: String) {
     var put = new Put(fixedLiterals.getBytes)
-    put.add("cf".getBytes, "path".getBytes, foundLiterals.getBytes);
+    put.add("path".getBytes, "a".getBytes, foundLiterals.getBytes);
     table.put(put);
     log.info(s"Key [${fixedLiterals}] saved...")
   }

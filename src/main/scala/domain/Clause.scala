@@ -14,10 +14,18 @@ class Clause {
    */
   def isSatisfasiable(vars : List[Int]) : Boolean = {
     var res = false
+    var allLiteralsFound = true;
     for (l <- literals){
-        res = res || vars.contains(l)
+        if (vars.contains(l) || vars.contains(-l)){
+          res = res || vars.contains(l);
+        }else{
+          allLiteralsFound = false;
+        }
     }
-    return res
+    if (allLiteralsFound)
+      return res;
+    else
+      return true;
   }
 
 }

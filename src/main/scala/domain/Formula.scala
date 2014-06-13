@@ -1,5 +1,6 @@
 package main.scala.domain
 
+import org.apache.log4j.Logger
 import scala.collection.immutable.HashMap
 
 /**
@@ -20,17 +21,19 @@ class Formula {
   /**
    * @return true if the formula is satisfiable
    */
-  def isSatisfasiable(literals: List[Int]): Boolean = {
+  def isSatisfasiable(literals: List[Int], log : Logger): Boolean = {
     var res = true
-    var affectedClauses = getClauses(literals)
-    for (c <- affectedClauses) {
+    var affectedClauses = getClauses(literals, log)
+    for (c <- affectedClauses if res) {
       res = res && c.isSatisfasiable(literals)
     }
     return res
   }
 
-  def getClauses(literals : List[Int]) : List[Clause] =
-     literals.foldLeft(List[Clause]()) {(list, key) => list ::: clausesOfVars.getOrElse(math.abs(key), List[Clause]())}
+  def getClauses(literals : List[Int], log: Logger) : List[Clause] = {
+    var clauses = literals.foldLeft(List[Clause]()) {(list, key) => list ::: clausesOfVars.getOrElse(math.abs(key), List[Clause]())}
+    return clauses;
+  }
 
 
   /**
@@ -40,7 +43,8 @@ class Formula {
    * @param clause
    */
   def addClauseOfVar(literal: Int, clause: Clause) {
-    clausesOfVars += (literal -> (clause :: clausesOfVars.getOrElse(literal, List[Clause]())))
+    var literalAbs = math.abs(literal);
+    clausesOfVars += (literalAbs -> (clause :: clausesOfVars.getOrElse(literalAbs, List[Clause]())))
   }
 
   def getFalseClauses(literals: List[Int]): List[Clause] = {

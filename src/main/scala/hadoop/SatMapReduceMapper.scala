@@ -17,7 +17,7 @@ import org.apache.hadoop.mapreduce.Mapper
  * Created by marbarfa on 1/13/14.
  */
 class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with ConvertionHelper
-  with SatLoggingUtils with HBaseHelper {
+with SatLoggingUtils with HBaseHelper {
 
   var formula: Formula = _
   var numberOfSplits: Int = _
@@ -36,6 +36,10 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
 
     initHTable();
     invalidLiterals = retrieveInvalidLiterals
+    log.info(s"Invalid literals combinations:")
+    invalidLiterals.foreach(l => {
+      log.info(s"Literals [${l.toString()}}]")
+    })
   }
 
   protected override def cleanup(context: Context) {
@@ -52,17 +56,10 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
   def addLiteralsToDB(clause: Clause, literals: List[Int]) {
     var key: String = ""
     key = clause.literals.foldLeft("")((acc, x) => {
-      var l = literals.find(y => y == x || y == -x).getOrElse(0)
-      if (l != 0) {
-        acc + " " + l
-      } else {
-        acc
-      }
+      acc + " " + (-x)
     }).trim;
 
-    log.info(s"False combination of literals: [$key] for clause ${clause.id}")
     saveToHBaseInvalidLiteral(key, clause.toString)
-
   }
 
 
@@ -132,7 +129,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
 
   private def evaluateSubproblem(subproblem: List[Int]): Boolean = {
     if (!existsInKnowledgeBase(subproblem)) {
-      return formula.isSatisfasiable(subproblem)
+      return formula.isSatisfasiable(subproblem, log)
     }
     return false;
   }
@@ -152,10 +149,11 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
     var found = false;
     for (invalidSet <- invalidLiterals if !found) {
       if (invalidSet.toSet subsetOf vars.toSet) {
+        log.info(s"Set ${invalidSet.toSet} is a subset of ${vars.toSet}")
         found = true
       }
     }
-    return false;
+    return found;
 
   }
 
