@@ -36,10 +36,12 @@ with SatLoggingUtils with HBaseHelper {
 
     initHTable();
     invalidLiterals = retrieveInvalidLiterals
-    log.info(s"Invalid literals combinations:")
+    log.trace("------------------------------------")
+    log.trace(s"Invalid literals combinations:")
     invalidLiterals.foreach(l => {
-      log.info(s"Literals [${l.toString()}}]")
+      log.trace(s"[${l.toString()}}]")
     })
+    log.trace("------------------------------------")
   }
 
   protected override def cleanup(context: Context) {
@@ -149,7 +151,7 @@ with SatLoggingUtils with HBaseHelper {
     var found = false;
     for (invalidSet <- invalidLiterals if !found) {
       if (invalidSet.toSet subsetOf vars.toSet) {
-        log.info(s"Set ${invalidSet.toSet} is a subset of ${vars.toSet}")
+        log.trace(s"Set ${invalidSet.toSet} is a subset of ${vars.toSet}")
         found = true
       }
     }

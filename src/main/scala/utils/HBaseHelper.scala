@@ -21,7 +21,6 @@ trait HBaseHelper extends SatLoggingUtils {
     try {
       scanner.iterator().toStream.foreach(rr => {
         var rowStr = new String(rr.getRow);
-        log.info(s"Found row $rowStr")
 
         var splitrow = rowStr.split(" ")
         var setOfLiterals = List[Int]()
@@ -32,7 +31,6 @@ trait HBaseHelper extends SatLoggingUtils {
             case e: Throwable => //parsed empty of "_" character.
           }
         })
-        log.info(s"Set of literals retrieved from HBase: ${setOfLiterals.toString()}.")
         invalidLiterals = invalidLiterals ++ List(setOfLiterals)
       });
     } finally {
@@ -106,14 +104,14 @@ trait HBaseHelper extends SatLoggingUtils {
     var put = new Put(key.getBytes)
     put.add("invalid_literals".getBytes, "a".getBytes, value.getBytes);
     table.put(put);
-    log.info(s"Key [${key}] saved...")
+    log.trace(s"Key [${key}] saved...")
   }
 
   def saveToHBaseLiteralPath(fixedLiterals: String, foundLiterals: String) {
     var put = new Put(fixedLiterals.getBytes)
     put.add("path".getBytes, "a".getBytes, foundLiterals.getBytes);
     table.put(put);
-    log.info(s"Key [${fixedLiterals}] saved...")
+    log.trace(s"Key [${fixedLiterals}] saved...")
   }
 
 
