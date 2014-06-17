@@ -61,7 +61,7 @@ with SatLoggingUtils with HBaseHelper {
       acc + " " + (-x)
     }).trim;
 
-    saveToHBaseInvalidLiteral(key, clause.toString)
+    saveToHBaseInvalidLiteral(key+"\n", clause.toString)
   }
 
 
@@ -74,11 +74,13 @@ with SatLoggingUtils with HBaseHelper {
    */
   override def map(key: LongWritable, value: Text, context: Context) {
     var start = System.currentTimeMillis();
-    log.info(s"Starting mapper with key $key, value: ${value.toString}, depth: $numberOfSplits")
     var fixed: List[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
+    log.info(s"Starting mapper with key $key, value: ${value.toString}, fixed: ${fixed.toString()}")
+    var fixedLiteralsNumber = context.getConfiguration.getInt("fixed_literals", 0);
+    log.info(s"Fixed literals so far: ${fixedLiteralsNumber}")
+
 
     var execStats = searchForLiterals(fixed, List(), value, context, numberOfSplits);
-
     log.info(
       s"""
          |Finishing... ### Mapper Stats ###
@@ -91,8 +93,7 @@ with SatLoggingUtils with HBaseHelper {
     if (depth == 0) {
       var satSelectedLiterals = SatMapReduceHelper.createSatString(selected)
       var satFixedLiterals = SatMapReduceHelper.createSatString(fixed)
-      log.debug(s"Subproblem is a valid subsolution, output: $satSelectedLiterals")
-      context.write(new Text(satSelectedLiterals.getBytes), new Text(satFixedLiterals.getBytes));
+      context.write(new Text(satSelectedLiterals), new Text(satFixedLiterals));
       return (1, 0)
     } else {
       var subsolsFound = 0
@@ -104,6 +105,7 @@ with SatLoggingUtils with HBaseHelper {
         val subproblem = fixedSubproblem ++ Set(l)
         if (!evaluateSubproblem(subproblem)) {
           var clauses = formula.getFalseClauses(subproblem)
+          log.info(s"Problem instance ${subproblem} makes ${clauses.toString} false..")
           clauses.foreach(clause => addLiteralsToDB(clause, subproblem));
           //prune => do not search in this branch.
           pruned = pruned + 1;
@@ -151,7 +153,7 @@ with SatLoggingUtils with HBaseHelper {
     var found = false;
     for (invalidSet <- invalidLiterals if !found) {
       if (invalidSet.toSet subsetOf vars.toSet) {
-        log.trace(s"Set ${invalidSet.toSet} is a subset of ${vars.toSet}")
+        log.info(s"Set ${invalidSet.toSet} is a subset of ${vars.toSet}")
         found = true
       }
     }

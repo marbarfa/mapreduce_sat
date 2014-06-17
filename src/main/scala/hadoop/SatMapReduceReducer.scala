@@ -1,6 +1,7 @@
 package main.scala.hadoop
 
 import java.lang
+import main.java.enums.EnumMRCounters
 import main.scala.common.{SatMapReduceConstants, SatMapReduceHelper}
 import main.scala.domain.Formula
 import main.scala.utils.{HBaseHelper, SatLoggingUtils, ConvertionHelper, CacheHelper}
@@ -28,8 +29,8 @@ with SatLoggingUtils with HBaseHelper {
     }
 
     iteration = context.getConfiguration.getInt("iteration", 1);
-    fixedLiteralsNumber = context.getConfiguration.getInt("fixed_literals", 0);
     startTime = context.getConfiguration.getLong("start_miliseconds", 0);
+    fixedLiteralsNumber = context.getConfiguration.getInt("fixed_literals", 0);
 
     initHTable()
   }
@@ -59,21 +60,22 @@ with SatLoggingUtils with HBaseHelper {
 
   override def reduce(key: Text, values: lang.Iterable[Text], context: Reducer[Text, Text, NullWritable, Text]#Context) {
     var fixedLiterals = 0
-    values.asScala.foreach(v => {
-      var literalDefinition = SatMapReduceHelper.parseInstanceDef(key.toString.trim + " " + v.toString.trim)
-      fixedLiterals = literalDefinition.size + fixedLiteralsNumber;
-      if (formula.n == fixedLiterals) {
-        var solFound = evaluateSolution(key.toString, values.asScala);
+    var currentSelected = SatMapReduceHelper.parseInstanceDef(key.toString.trim)
+    fixedLiterals = currentSelected.size + fixedLiteralsNumber;
+    var fixed : List[String] = values.asScala.toList map (x => x.toString)
+    fixed.foreach(v => {
+//      var currentFixed = SatMapReduceHelper.parseInstanceDef(v.toString.trim)
+      if (formula.n <= fixedLiterals) {
+        var solFound = evaluateSolution(key.toString, fixed);
         if (solFound) {
-          context.getConfiguration.set("sol_found", "true");
+          context.getCounter(EnumMRCounters.SOLUTIONS).increment(1);
         }
       }
     })
-    if (formula.n != fixedLiterals) {
-      context.write(NullWritable.get(), new Text(key.getBytes))
+    if (formula.n > fixedLiterals) {
+      context.write(NullWritable.get(), new Text(key))
       //saving "found_key" -> "fixed1|fixed2|fixed3"
-      saveToHBaseLiteralPath(key.toString, values.asScala.foldLeft("")((acc, b) => s"$acc|${b.toString}"))
-      context.getConfiguration.set("fixed_literals", fixedLiterals.toString);
+      saveToHBaseLiteralPath(key.toString.trim, fixed.foldLeft("")((acc, b) => s"$acc&${b.trim}").substring(1))
     }
   }
 
@@ -83,11 +85,16 @@ with SatLoggingUtils with HBaseHelper {
    * @param values
    * @return retuns a literal definition of the solution found or null if no solution could be found.
    */
-  private def evaluateSolution(key: String, values: Iterable[Text]): Boolean = {
+  private def evaluateSolution(key: String, values: List[String]): Boolean = {
+    log.info(s"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+    log.info(s"Evaluating solution to the problem..., searching for paths.")
     values.foreach(v => {
+      log.info(s"Retriving path for ${v.toString}")
       var paths = retrieveLiteralsPaths(v.toString)
+      log.info(s"Retrieved path $paths")
       paths.foreach(literalCombination => {
         var sol = literalCombination ++ stringToIntSet(key)
+        log.info(s"Possible solution: $sol")
         if (formula isSatisfasiable (sol,log)) {
           log.info(s"Solution found = ${sol.toString()}!!!")
           saveSolution(sol);
@@ -97,6 +104,7 @@ with SatLoggingUtils with HBaseHelper {
         }
       })
     })
+    log.info(s"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
     return false;
   }
 

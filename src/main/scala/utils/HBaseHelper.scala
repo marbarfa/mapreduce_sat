@@ -43,7 +43,7 @@ trait HBaseHelper extends SatLoggingUtils {
   protected def stringToIntSet(str : String) : List[Int] =
     str.split(" ").foldLeft(List[Int]())((acc, b) =>
       try {
-        var intVal = b.toInt
+        var intVal = b.trim.toInt
         acc ++ List(intVal);
       } catch {
         case e: Throwable => //parsed empty of "_" character.
@@ -54,12 +54,13 @@ trait HBaseHelper extends SatLoggingUtils {
   private def getLiteralsPathFromMap(key: String, hbaseInfo: Map[String, List[String]]) : List[List[Int]] ={
     var res = List[List[Int]]()
     if (hbaseInfo contains key){
-      hbaseInfo.getOrElse(key, List()).foreach(s => {
+      hbaseInfo.getOrElse(key.trim, List()).foreach(s => {
         var partialRes = List[Int]()
         var paths =  getLiteralsPathFromMap(s, hbaseInfo);
         paths.foreach(l => partialRes = partialRes ++ l)
         partialRes = partialRes ++ stringToIntSet(key)
         res = List(partialRes) ++ res
+        log.info(s"Returning literal path $res")
       })
     }
     return res;
@@ -90,8 +91,12 @@ trait HBaseHelper extends SatLoggingUtils {
         var valStr = new String(rr.value);
         log.info(s"[LitPath]Found row $rowStr")
         log.info(s"[LitPath]Found val $valStr")
-        hbaseInfo = Map(rowStr -> valStr.split("|").toList) ++ hbaseInfo
+        log.info(s"List: ${valStr.split("&").toList}")
+        hbaseInfo = Map(rowStr.trim -> valStr.split("&").toList) ++ hbaseInfo
       })
+      log.info("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+      log.info(s"Created map $hbaseInfo")
+      log.info("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
       return getLiteralsPathFromMap(key, hbaseInfo)
     } finally {
       scanner.close();
@@ -111,7 +116,7 @@ trait HBaseHelper extends SatLoggingUtils {
     var put = new Put(fixedLiterals.getBytes)
     put.add("path".getBytes, "a".getBytes, foundLiterals.getBytes);
     table.put(put);
-    log.trace(s"Key [${fixedLiterals}] saved...")
+    log.trace(s"Key [$fixedLiterals] with value [$foundLiterals] saved...")
   }
 
 

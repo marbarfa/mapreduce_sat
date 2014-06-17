@@ -21,14 +21,11 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
   def generateProblemSplit(fixedVars: List[Int], amount: Int, formula: Formula): List[Int] = {
     log.debug(s"Generating subproblem split. Fixed: ${fixedVars.toString()}, n: ${formula.n}, amount: $amount")
     var variables: List[Int] = List[Int]();
-    formula.getLiteralsInOrder()
-      .toStream
-      .takeWhile(_ => variables.size < amount)
-      .foreach(i => {
+    for(i <- formula.getLiteralsInOrder() if variables.size < amount){
       if (!fixedVars.contains(i) && !fixedVars.contains(-i)) {
         variables = i :: variables;
       }
-    });
+    };
 
     return variables;
   }
@@ -128,6 +125,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
   //eg: for Map(1 -> true, 2->false, 3->false) ===> definition = "1 -2 -3"
   def createSatString(literals: List[Int]): String =
     literals
+      .sorted
       .foldLeft("")((varStr, b) =>
       varStr + " " + b)
 
