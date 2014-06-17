@@ -54,7 +54,8 @@ class Formula {
       clausesOfVars
         .getOrElse(math.abs(literal), List[Clause]())
         .foreach(clause => {
-        if (!clause.isSatisfasiable(literals)) {
+        if (!falseClauses.contains(clause) &&
+            !clause.isSatisfasiable(literals)) {
           falseClauses ::= clause
         }
       })

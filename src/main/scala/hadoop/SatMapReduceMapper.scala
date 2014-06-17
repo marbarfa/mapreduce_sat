@@ -105,7 +105,8 @@ with SatLoggingUtils with HBaseHelper {
         val subproblem = fixedSubproblem ++ Set(l)
         if (!evaluateSubproblem(subproblem)) {
           var clauses = formula.getFalseClauses(subproblem)
-          log.info(s"Problem instance ${subproblem} makes ${clauses.toString} false..")
+          log.info(s"Problem instance ${subproblem} makes the following clauses false:")
+          clauses.foreach(c => log.info(s"clause: ${c.literals} ${c.id}"))
           clauses.foreach(clause => addLiteralsToDB(clause, subproblem));
           //prune => do not search in this branch.
           pruned = pruned + 1;
