@@ -52,13 +52,12 @@ trait HBaseHelper extends SatLoggingUtils {
     );
 
   private def getLiteralsPathFromMap(key: String, hbaseInfo: Map[String, List[String]]) : List[List[Int]] ={
-    var res = List[List[Int]]()
+    var res = List(stringToIntSet(key))
     if (hbaseInfo contains key){
       hbaseInfo.getOrElse(key.trim, List()).foreach(s => {
         var partialRes = List[Int]()
         var paths =  getLiteralsPathFromMap(s, hbaseInfo);
         paths.foreach(l => partialRes = partialRes ++ l)
-        partialRes = partialRes ++ stringToIntSet(key)
         res = List(partialRes) ++ res
         log.info(s"Returning literal path $res")
       })

@@ -89,11 +89,12 @@ with SatLoggingUtils with HBaseHelper {
     log.info(s"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
     log.info(s"Evaluating solution to the problem..., searching for paths.")
     values.foreach(v => {
-      log.info(s"Retriving path for ${v.toString}")
+      log.info(s"Retriving path for ${v.toString}, key=${key.toString}")
       var paths = retrieveLiteralsPaths(v.toString)
+      var keyLiterals = stringToIntSet(key);
       log.info(s"Retrieved path $paths")
       paths.foreach(literalCombination => {
-        var sol = literalCombination ++ stringToIntSet(key)
+        var sol = literalCombination ++ keyLiterals
         log.info(s"Possible solution: $sol")
         if (formula isSatisfasiable (sol,log)) {
           log.info(s"Solution found = ${sol.toString()}!!!")

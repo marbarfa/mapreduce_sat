@@ -21,6 +21,7 @@ with SatLoggingUtils with HBaseHelper {
 
   var formula: Formula = _
   var numberOfSplits: Int = _
+  var fixedLiteralsNumber : Int = _
 
   type Context = Mapper[LongWritable, Text, Text, Text]#Context
 
@@ -33,13 +34,14 @@ with SatLoggingUtils with HBaseHelper {
       formula = CacheHelper.sat_instance(context.getConfiguration.get("problem_path"))
     }
     numberOfSplits = context.getConfiguration.get("numbers_of_mappers").toInt
+    fixedLiteralsNumber = context.getConfiguration.getInt("fixed_literals", 0);
 
     initHTable();
     invalidLiterals = retrieveInvalidLiterals
-    log.trace("------------------------------------")
-    log.trace(s"Invalid literals combinations:")
+    log.debug("------------------------------------")
+    log.debug(s"Invalid literals combinations:")
     invalidLiterals.foreach(l => {
-      log.trace(s"[${l.toString()}}]")
+      log.debug(s"[${l.toString()}}]")
     })
     log.trace("------------------------------------")
   }
@@ -56,12 +58,13 @@ with SatLoggingUtils with HBaseHelper {
    * @param literals
    */
   def addLiteralsToDB(clause: Clause, literals: List[Int]) {
+    log.debug(s"Adding literals $literals to clause ${clause.id}=${clause.literals}")
     var key: String = ""
     key = clause.literals.foldLeft("")((acc, x) => {
       acc + " " + (-x)
     }).trim;
-
-    saveToHBaseInvalidLiteral(key+"\n", clause.toString)
+    log.debug(s"Adding key: $key with value ${clause.literals.toString}")
+    saveToHBaseInvalidLiteral(key, clause.literals.toString)
   }
 
 
@@ -77,8 +80,7 @@ with SatLoggingUtils with HBaseHelper {
     var fixed: List[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
     log.info(s"Starting mapper with key $key, value: ${value.toString}, fixed: ${fixed.toString()}")
     var fixedLiteralsNumber = context.getConfiguration.getInt("fixed_literals", 0);
-    log.info(s"Fixed literals so far: ${fixedLiteralsNumber}")
-
+    log.debug(s"Fixed literals so far: ${fixedLiteralsNumber}")
 
     var execStats = searchForLiterals(fixed, List(), value, context, numberOfSplits);
     log.info(
@@ -100,13 +102,15 @@ with SatLoggingUtils with HBaseHelper {
       var pruned = 0;
       var fixedSubproblem = fixed ++ selected
       var l = selectLiteral(fixedSubproblem);
+      log.debug(s"Selected literal $l")
       if (l != 0) {
         //recursive part..
         val subproblem = fixedSubproblem ++ Set(l)
+        log.debug(s"Selected $l, subproblem: $subproblem")
         if (!evaluateSubproblem(subproblem)) {
           var clauses = formula.getFalseClauses(subproblem)
-          log.info(s"Problem instance ${subproblem} makes the following clauses false:")
-          clauses.foreach(c => log.info(s"clause: ${c.literals} ${c.id}"))
+          log.debug(s"Problem instance ${subproblem} makes the following clauses false:")
+          clauses.foreach(c => log.debug(s"clause: ${c.literals} ${c.id}"))
           clauses.foreach(clause => addLiteralsToDB(clause, subproblem));
           //prune => do not search in this branch.
           pruned = pruned + 1;
@@ -115,10 +119,12 @@ with SatLoggingUtils with HBaseHelper {
           subsolsFound = subsolsFound + ij._1
           pruned = pruned + ij._2
         }
-
         val subproblemPositive = fixedSubproblem ++ Set(-l)
+        log.debug(s"Selected -$l, subproblem: $subproblemPositive")
         if (!evaluateSubproblem(subproblemPositive)) {
           var clauses = formula.getFalseClauses(subproblemPositive)
+          log.debug(s"Problem instance ${subproblemPositive} makes the following clauses false:")
+          clauses.foreach(c => log.debug(s"clause: ${c.literals} ${c.id}"))
           clauses.foreach(clause => addLiteralsToDB(clause, subproblemPositive));
           //prune => do not search in this branch.
           pruned = pruned + 1;
@@ -127,6 +133,12 @@ with SatLoggingUtils with HBaseHelper {
           subsolsFound = subsolsFound + ij._1
           pruned = pruned + ij._2
         }
+      }else{
+        var satSelectedLiterals = SatMapReduceHelper.createSatString(selected)
+        var satFixedLiterals = SatMapReduceHelper.createSatString(fixed)
+        context.write(new Text(satSelectedLiterals), new Text(satFixedLiterals));
+        subsolsFound = 1;
+        pruned = 0;
       }
       return (subsolsFound, pruned);
     }
@@ -141,7 +153,10 @@ with SatLoggingUtils with HBaseHelper {
 
   private def selectLiteral(vars: List[Int]): Int = {
     //iterate the literals by order of appearence in clauses.
-    formula.getLiteralsInOrder().foreach(x => {
+    formula
+      .getLiteralsInOrder()
+      .slice(fixedLiteralsNumber-1, formula.n)
+      .foreach(x => {
       if (!vars.contains(x) && !vars.contains(-x)) {
         return x;
       }
@@ -154,7 +169,7 @@ with SatLoggingUtils with HBaseHelper {
     var found = false;
     for (invalidSet <- invalidLiterals if !found) {
       if (invalidSet.toSet subsetOf vars.toSet) {
-        log.info(s"Set ${invalidSet.toSet} is a subset of ${vars.toSet}")
+        log.debug(s"Set ${invalidSet.toSet} is a subset of ${vars.toSet}")
         found = true
       }
     }
