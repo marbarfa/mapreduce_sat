@@ -74,6 +74,7 @@ with SatLoggingUtils with HBaseHelper {
     })
     if (formula.n > fixedLiterals) {
       context.write(NullWritable.get(), new Text(key))
+      context.getCounter(EnumMRCounters.SUBPROBLEMS).increment(1l)
       //saving "found_key" -> "fixed1|fixed2|fixed3"
       saveToHBaseLiteralPath(key.toString.trim, fixed.foldLeft("")((acc, b) => s"$acc&${b.trim}").substring(1))
     }

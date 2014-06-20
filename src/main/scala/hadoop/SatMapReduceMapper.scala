@@ -22,6 +22,7 @@ with SatLoggingUtils with HBaseHelper {
   var formula: Formula = _
   var numberOfSplits: Int = _
   var fixedLiteralsNumber : Int = _
+  var iteration : Int = _
 
   type Context = Mapper[LongWritable, Text, Text, Text]#Context
 
@@ -35,6 +36,7 @@ with SatLoggingUtils with HBaseHelper {
     }
     numberOfSplits = context.getConfiguration.get("numbers_of_mappers").toInt
     fixedLiteralsNumber = context.getConfiguration.getInt("fixed_literals", 0);
+    iteration = context.getConfiguration.getInt("iteration", 1);
 
     initHTable();
     invalidLiterals = retrieveInvalidLiterals
@@ -78,9 +80,7 @@ with SatLoggingUtils with HBaseHelper {
   override def map(key: LongWritable, value: Text, context: Context) {
     var start = System.currentTimeMillis();
     var fixed: List[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
-    log.info(s"Starting mapper with key $key, value: ${value.toString}, fixed: ${fixed.toString()}")
-    var fixedLiteralsNumber = context.getConfiguration.getInt("fixed_literals", 0);
-    log.debug(s"Fixed literals so far: ${fixedLiteralsNumber}")
+    log.info(s"[Iteration $iteration|fixed: $fixedLiteralsNumber] Mapper value: ${value.toString}, fixed: ${fixed.toString()}")
 
     var execStats = searchForLiterals(fixed, List(), value, context, numberOfSplits);
     log.info(
@@ -89,6 +89,7 @@ with SatLoggingUtils with HBaseHelper {
          |ExecTime: ${(System.currentTimeMillis() - start) / 1000} seconds
          |Sols found : ${execStats._1} | Pruned: ${execStats._2}
        """.stripMargin);
+
   }
 
   def searchForLiterals(fixed: List[Int], selected: List[Int], value: Text, context: Context, depth: Int): (Int, Int) = {
