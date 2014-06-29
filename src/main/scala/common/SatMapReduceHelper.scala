@@ -75,7 +75,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
         var subproblem = createMap(possibleVars, toBinary(i, possibleVars.size))
         callback apply subproblem
       } catch {
-        case t: Throwable => log.error(s"Error creating problem map for $i, possibleVars: ${possibleVars.toString()}")
+        case t: Throwable => log.error(s"Error creating problem map for $i, possibleVars: ${possibleVars.toString()}", t)
       }
     }
   }

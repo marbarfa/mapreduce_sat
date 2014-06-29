@@ -1,6 +1,6 @@
 package main.scala.hadoop
 
-import main.scala.common.SatMapReduceHelper
+import main.scala.common.{SatMapReduceConstants, SatMapReduceHelper}
 import main.scala.domain.{Formula, Clause}
 import main.scala.utils.{HBaseHelper, SatLoggingUtils, ConvertionHelper, CacheHelper}
 import org.apache.hadoop.io.{LongWritable, Text}
@@ -20,7 +20,7 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
 with SatLoggingUtils with HBaseHelper {
 
   var formula: Formula = _
-  var numberOfSplits: Int = _
+  var depth: Int = _
   var fixedLiteralsNumber : Int = _
   var iteration : Int = _
 
@@ -32,11 +32,12 @@ with SatLoggingUtils with HBaseHelper {
   protected override def setup(context: Context) {
     // retrieve 3SAT instance.
     if (formula == null) {
-      formula = CacheHelper.sat_instance(context.getConfiguration.get("problem_path"))
+      formula = CacheHelper.sat_instance(context.getConfiguration.get(SatMapReduceConstants.config.problem_path))
     }
-    numberOfSplits = context.getConfiguration.get("numbers_of_mappers").toInt
-    fixedLiteralsNumber = context.getConfiguration.getInt("fixed_literals", 0);
-    iteration = context.getConfiguration.getInt("iteration", 1);
+
+    depth = context.getConfiguration.get(SatMapReduceConstants.config.depth).toInt
+    iteration = context.getConfiguration.get(SatMapReduceConstants.config.iteration).toInt
+    fixedLiteralsNumber = context.getConfiguration.getInt(SatMapReduceConstants.config.fixed_literals, 0);
 
     initHTable();
     invalidLiterals = retrieveInvalidLiterals
@@ -80,14 +81,19 @@ with SatLoggingUtils with HBaseHelper {
   override def map(key: LongWritable, value: Text, context: Context) {
     var start = System.currentTimeMillis();
     var fixed: List[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
-    log.info(s"[Iteration $iteration|fixed: $fixedLiteralsNumber] Mapper value: ${value.toString}, fixed: ${fixed.toString()}")
+    log.trace(s"[Iteration $iteration|fixed: $fixedLiteralsNumber] Mapper value: ${value.toString}, fixed: ${fixed.toString()}")
 
-    var execStats = searchForLiterals(fixed, List(), value, context, numberOfSplits);
+    var execStats = searchForLiterals(fixed, List(), value, context, depth);
     log.info(
       s"""
-         |Finishing... ### Mapper Stats ###
+         |##################    Mapper Stats   ###################
+         |Mapper thread ID: ${Thread.currentThread().getId}
+         ||Mapper thread Name: ${Thread.currentThread().getName}
+         |Iteration $iteration
+         |fixed: $fixedLiteralsNumber
          |ExecTime: ${(System.currentTimeMillis() - start) / 1000} seconds
          |Sols found : ${execStats._1} | Pruned: ${execStats._2}
+         |########################################################
        """.stripMargin);
 
   }

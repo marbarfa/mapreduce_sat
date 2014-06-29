@@ -21,11 +21,11 @@ import scala.collection.JavaConverters._
  */
 object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
 
-  var instance_path : String = _
-  var startTime : Long = _
-  var depth : Int = _
-  var numberOfMappers : Int = _
-  var numberOfLiterals : Int = _
+  var instance_path: String = _
+  var startTime: Long = _
+  var depth: Int = _
+  var numberOfMappers: Int = _
+  var numberOfLiterals: Int = _
 
   /**
    * Main SAT program.
@@ -35,7 +35,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
   def run(args: Array[String]): Int = {
 
     //retrieve problem partition file
-    if (args.size != 2) {
+    if (args.size != 3) {
       log.info(
         s"""
            |Wrong number of inputs. The app needs 2 parameters:
@@ -44,7 +44,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
            |depth: how many literals to fix in each iteration.
            |number of mappers: max mappers to create in each iteration.
          """.stripMargin
-        )
+      )
     } else {
 
       log.info("Starting mapreduce algorithm...")
@@ -56,11 +56,11 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
       depth = args(1).toInt
       numberOfMappers = args(2).toInt
 
-      var job : SatJob = createInitJob();
+      var job: SatJob = createInitJob();
 
       var finishedOk: Boolean = job.waitForCompletion(true)
       var end = false;
-      while (finishedOk && !end){
+      while (finishedOk && !end) {
         log.info(s"#################################################################################################")
         var solCounter = job.getCounters.findCounter(EnumMRCounters.SOLUTIONS)
         if (SatReader.readSolution(instance_path) || solCounter != null && solCounter.getValue > 0) {
@@ -68,13 +68,13 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
           end = true;
         } else {
           log.info(s"#################################################################################################")
-          log.info (s"####################Solution not found, starting iteration ${job.iteration + 1}################")
+          log.info(s"####################Solution not found, starting iteration ${job.iteration + 1}################")
           log.info(s"#################################################################################################")
           //solution not found yet => start next iteration.(input = previous output, output = new tmp
           var fixedLit = job.getConfiguration.getInt("fixed_literals", 0);
           log.info(s"##### Fixed literals configuration: $fixedLit")
 
-          if (fixedLit < numberOfLiterals){
+          if (fixedLit < numberOfLiterals) {
 
             var subprobCounter = job.getCounters.findCounter(EnumMRCounters.SUBPROBLEMS)
             var subproblemsCount = subprobCounter.getValue.toInt;
@@ -88,19 +88,31 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
             finishedOk = job.waitForCompletion(true);
             var tasks = job.getConfiguration.get("mapreduce.job.maps");
             log.info(s"Job tasks $tasks")
-            if (tasks != null && tasks.equals("0")){
+            if (tasks != null && tasks.equals("0")) {
               log.info(s"Finishing MR job without solutions!.")
+
+              SatMapReduceHelper.saveStringToFile(
+                s"""
+                | ##########################################################################
+                | Solution not found
+                | Time: ${(System.currentTimeMillis() - startTime) / 1000} seconds
+                | Interation: ${job.iteration}.
+                | Problem: $instance_path
+                | ##########################################################################
+              """.stripMargin,
+                SatMapReduceConstants.sat_not_solution_path + instance_path, true);
+
               end = true;
             }
-          }else{
+          } else {
             end = true;
           }
         }
       }
 
-      if (finishedOk){
+      if (finishedOk) {
         return 0;
-      }else{
+      } else {
         return 1;
       }
     }
@@ -110,23 +122,23 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
   }
 
 
-  private def cleanup(){
+  private def cleanup() {
     //delete existing output folders.
     log.info("Deleting output folders...")
     try {
       val fs = FileSystem.get(new Configuration())
       fs.delete(new Path("sat_tmp"), true);
     } catch {
-      case e : Throwable  => //do nothing in all cases.
+      case e: Throwable => //do nothing in all cases.
     }
 
     //cleanup DB.
     log.info("Cleaning up database...")
     val hconf = HBaseConfiguration.create
     var hTable = new HTable(hconf, "var_tables")
-    var scanner : ResultScanner = hTable.getScanner(new Scan());
+    var scanner: ResultScanner = hTable.getScanner(new Scan());
 
-    for (result : Result <- scanner.asScala) {
+    for (result: Result <- scanner.asScala) {
       var delete = new Delete(result.getRow);
       hTable.delete(delete);
     }
@@ -141,7 +153,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     numberOfLiterals = formula.n;
 
     //generate problem split -> first choose which literals use as variables and how many.
-    var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), depth, formula);
+    var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), 3, formula);
     SatMapReduceHelper.genearteProblemMap(problemSplitVars, new ISatCallback[List[Int]] {
       override def apply(t: List[Int]) =
       //save problem definition in the input path to be used as input in the MapReduce algorithm.
@@ -149,19 +161,18 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     })
 
     var job = createNewJob(input_path,
-                          SatMapReduceConstants.sat_tmp_folder_output + "_1",
-                          1,
-                          numberOfMappers,
-                          math.pow(2, depth).toInt);
+      SatMapReduceConstants.sat_tmp_folder_output + "_1",
+      1,
+      3,
+      math.pow(2, depth).toInt);
 
     return job;
   }
 
 
-
   private def createNewJob(input: String,
                            output: String,
-                           iteration : Int,
+                           iteration: Int,
                            fixedLiterals: Int,
                            numberOfProblems: Int): SatJob = {
     val job = new SatJob(input, output, iteration, getConf, SatMapReduceJob.getClass.getSimpleName)
@@ -174,17 +185,27 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     job.setOutputKeyClass(classOf[Text])
     job.setOutputValueClass(classOf[Text])
 
+    log.info(
+      s"""
+         |Creating job with parameters:
+         |iteration            : ${iteration.toString}
+         |depth                : ${depth.toString}
+         |path                 : $instance_path
+         |fixed lits           : $fixedLiterals
+         |mappers              : $numberOfMappers
+         |number Of problems   : $numberOfProblems
+         |lines/map            : ${numberOfProblems / numberOfMappers}
+       """.stripMargin)
+
     job.getConfiguration.set(SatMapReduceConstants.config.iteration, iteration.toString);
     job.getConfiguration.set(SatMapReduceConstants.config.depth, depth.toString);
     job.getConfiguration.set(SatMapReduceConstants.config.start_miliseconds, startTime.toString);
     job.getConfiguration.set(SatMapReduceConstants.config.problem_path, instance_path);
     job.getConfiguration.setInt(SatMapReduceConstants.config.fixed_literals, fixedLiterals);
-
-
-    job.getConfiguration.setInt("mapred.line.input.format.linespermap", numberOfProblems / numberOfMappers);
-
-    job.getCounters.addGroup("EnumMRCounters", "SUBPROBLEMS")
-    job.getCounters.addGroup("EnumMRCounters", "SOLUTIONS")
+    job.getConfiguration.setInt("mapreduce.input.lineinputformat.linespermap", numberOfProblems / numberOfMappers);
+    job.setNumReduceTasks(numberOfMappers * 1.5 toInt);
+    //    job.getCounters.addGroup("EnumMRCounters", "SUBPROBLEMS")
+    //    job.getCounters.addGroup("EnumMRCounters", "SOLUTIONS")
 
 
     //use NLineInputFormat => each mapper will receive one line of the file
