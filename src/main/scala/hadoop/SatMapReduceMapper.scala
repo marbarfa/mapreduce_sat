@@ -84,6 +84,12 @@ with SatLoggingUtils with HBaseHelper {
     log.trace(s"[Iteration $iteration|fixed: $fixedLiteralsNumber] Mapper value: ${value.toString}, fixed: ${fixed.toString()}")
 
     var execStats = searchForLiterals(fixed, List(), value, context, depth);
+
+    if (iteration > 1){
+      var s : String = null;
+      s.toString;
+    }
+
     log.info(
       s"""
          |##################    Mapper Stats   ###################

@@ -127,7 +127,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
     literals
       .sorted
       .foldLeft("")((varStr, b) =>
-      varStr + " " + b)
+      varStr + " " + b) + "\n"
 
   /**
    * Converts a int value to a binary string of @digits digits.

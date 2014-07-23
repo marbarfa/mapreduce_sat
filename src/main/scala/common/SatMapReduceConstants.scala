@@ -13,6 +13,7 @@ object SatMapReduceConstants {
   val sat_solution_path: String = "sol_"
 
   val sat_not_solution_path: String = "no_sol_"
+  val sat_exec_evolution = "sal_execution_"
 
   val variable_literals_amount = 2
 

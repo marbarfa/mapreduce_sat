@@ -76,6 +76,14 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
 
           if (fixedLit < numberOfLiterals) {
 
+            //Save current status to file.
+            SatMapReduceHelper.saveStringToFile(
+              s"""
+                | Time: ${(System.currentTimeMillis() - startTime) / 1000} seconds
+                | Interation: ${job.iteration} | Fixed: $fixedLit
+              """.stripMargin,
+              SatMapReduceConstants.sat_exec_evolution + instance_path, true);
+
             var subprobCounter = job.getCounters.findCounter(EnumMRCounters.SUBPROBLEMS)
             var subproblemsCount = subprobCounter.getValue.toInt;
 
@@ -152,8 +160,9 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     var formula = SatReader.read3SatInstance(instance_path);
     numberOfLiterals = formula.n;
 
+    var initialDepth = 4;
     //generate problem split -> first choose which literals use as variables and how many.
-    var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), 3, formula);
+    var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), initialDepth, formula);
     SatMapReduceHelper.genearteProblemMap(problemSplitVars, new ISatCallback[List[Int]] {
       override def apply(t: List[Int]) =
       //save problem definition in the input path to be used as input in the MapReduce algorithm.
@@ -163,8 +172,8 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     var job = createNewJob(input_path,
       SatMapReduceConstants.sat_tmp_folder_output + "_1",
       1,
-      3,
-      math.pow(2, depth).toInt);
+      initialDepth,
+      math.pow(2, initialDepth).toInt);
 
     return job;
   }
@@ -185,6 +194,11 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     job.setOutputKeyClass(classOf[Text])
     job.setOutputValueClass(classOf[Text])
 
+    var lines_per_map = numberOfProblems / numberOfMappers;
+    if (lines_per_map < 1){
+      lines_per_map = 1;
+    }
+
     log.info(
       s"""
          |Creating job with parameters:
@@ -194,7 +208,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
          |fixed lits           : $fixedLiterals
          |mappers              : $numberOfMappers
          |number Of problems   : $numberOfProblems
-         |lines/map            : ${numberOfProblems / numberOfMappers}
+         |lines/map            : $lines_per_map
        """.stripMargin)
 
     job.getConfiguration.set(SatMapReduceConstants.config.iteration, iteration.toString);
@@ -202,8 +216,9 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     job.getConfiguration.set(SatMapReduceConstants.config.start_miliseconds, startTime.toString);
     job.getConfiguration.set(SatMapReduceConstants.config.problem_path, instance_path);
     job.getConfiguration.setInt(SatMapReduceConstants.config.fixed_literals, fixedLiterals);
-    job.getConfiguration.setInt("mapreduce.input.lineinputformat.linespermap", numberOfProblems / numberOfMappers);
-    job.setNumReduceTasks(numberOfMappers * 1.5 toInt);
+    job.getConfiguration.setInt("mapreduce.input.lineinputformat.linespermap", lines_per_map);
+
+//    job.setNumReduceTasks(numberOfMappers * 1.5 toInt);
     //    job.getCounters.addGroup("EnumMRCounters", "SUBPROBLEMS")
     //    job.getCounters.addGroup("EnumMRCounters", "SOLUTIONS")
 
