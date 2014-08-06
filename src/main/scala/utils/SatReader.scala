@@ -22,11 +22,10 @@ object SatReader extends ISatReader with SatLoggingUtils {
     var clauses: Int = 0;
     var clauseIndex : Int = 0;
     var numberOfVars = 0;
-    var fs : FileSystem = null.asInstanceOf[FileSystem];
 
     // read problem instance from file.
     try {
-      fs = FileSystem.get(new Configuration())
+      val fs = FileSystem.get(new Configuration())
       var end = false;
       for (line <- Source.fromInputStream(fs.open(new Path(instance_path))).getLines() if !end) {
         if (line.startsWith("%")) {
@@ -81,16 +80,7 @@ object SatReader extends ISatReader with SatLoggingUtils {
         log.error(s"Error reading sat problem for file: ${instance_path}", e)
         throw e;
       }
-    } finally {
-      try{
-        if (fs != null.asInstanceOf[FileSystem]){
-          fs.close();
-        }
-      }catch {
-        case e: Throwable => //do nothing, ignore already closed.
-      }
     }
-
     formula.n = numberOfVars;
     formula.m = clauses;
     log.info(s"Problem instance read successfully: n=${formula.n}, m=${formula.m}")
