@@ -41,8 +41,13 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
     log.debug(s"Parsing instance def: $instance")
     instance.trim
       .split(" ")
-      .map(x => Integer.parseInt(x))
+      .map(x => if (x.length > 0)
+                  Integer.parseInt(x)
+                else
+                  0)
+      .filter(x => x>0)
       .toList
+
   }
 
 
