@@ -79,6 +79,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
         }
       }
 
+
       if (finishedOk){
         return 0;
       }else{
