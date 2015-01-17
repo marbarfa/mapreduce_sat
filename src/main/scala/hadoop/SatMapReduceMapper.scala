@@ -1,13 +1,11 @@
 package main.scala.hadoop
 
-import main.scala.common.SatMapReduceHelper
+import main.scala.common.{SatMapReduceConstants, SatMapReduceHelper}
 import main.scala.domain.{Formula, Clause}
 import main.scala.utils.{SatLoggingUtils, ConvertionHelper, CacheHelper}
-import org.apache.hadoop.hbase.HBaseConfiguration
-import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapreduce.Mapper
-import scala.collection.JavaConversions._
+
 
 /**
  *
@@ -18,50 +16,37 @@ import scala.collection.JavaConversions._
  *
  * Created by marbarfa on 1/13/14.
  */
-class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with ConvertionHelper with SatLoggingUtils {
+class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with ConvertionHelper
+with SatLoggingUtils with HBaseHelper {
+
   var formula: Formula = _
-  var numberOfSplits: Int = _
-  var table: HTable = _
+  var depth: Int = _
+  var fixedLiteralsNumber : Int = _
+  var iteration : Int = _
+
   type Context = Mapper[LongWritable, Text, Text, Text]#Context
 
-  var invalidLiterals : Set[Set[Int]] = Set[Set[Int]]()
+  var invalidLiterals: List[List[Int]] = List[List[Int]]()
 
 
   protected override def setup(context: Context) {
     // retrieve 3SAT instance.
     if (formula == null) {
-      formula = CacheHelper.sat_instance(context.getConfiguration.get("problem_path"))
-    }
-    numberOfSplits = context.getConfiguration.get("numbers_of_mappers").toInt
-
-    // Get HBase table of invalid variable combination
-    val hconf = HBaseConfiguration.create
-    table = new HTable(hconf, "var_tables")
-
-
-    var scanner = table.getScanner("cf".getBytes, "a".getBytes);
-    try {
-      scanner.iterator().toStream.foreach(rr => {
-        var rowStr = new String(rr.getRow);
-        log.info(s"Found row $rowStr")
-
-        var splitrow = rowStr.split(" ")
-        var setOfLiterals = Set[Int]()
-        splitrow.foreach(s => {
-          try{
-            setOfLiterals = setOfLiterals + s.toInt
-          } catch {
-            case e : Throwable => //parsed empty of "_" character.
-          }
-        })
-        log.info(s"Set of literals retrieved from HBase: ${setOfLiterals.toString()}.")
-        invalidLiterals = invalidLiterals + setOfLiterals
-      });
-
-    } finally {
-      scanner.close();
+      formula = CacheHelper.sat_instance(context.getConfiguration.get(SatMapReduceConstants.config.problem_path))
     }
 
+    depth = context.getConfiguration.get(SatMapReduceConstants.config.depth).toInt
+    iteration = context.getConfiguration.get(SatMapReduceConstants.config.iteration).toInt
+    fixedLiteralsNumber = context.getConfiguration.getInt(SatMapReduceConstants.config.fixed_literals, 0);
+
+    initHTable();
+    invalidLiterals = retrieveInvalidLiterals
+    log.debug("------------------------------------")
+    log.debug(s"Invalid literals combinations:")
+    invalidLiterals.foreach(l => {
+      log.debug(s"[${l.toString()}}]")
+    })
+    log.trace("------------------------------------")
   }
 
   protected override def cleanup(context: Context) {
@@ -75,24 +60,14 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
    * @param clause
    * @param literals
    */
-  def addLiteralsToDB(clause: Clause, literals: Set[Int]) {
-    var key : String = ""
+  def addLiteralsToDB(clause: Clause, literals: List[Int]) {
+    log.debug(s"Adding literals $literals to clause ${clause.id}=${clause.literals}")
+    var key: String = ""
     key = clause.literals.foldLeft("")((acc, x) => {
-      var l = literals.find(y => y==x || y == -x).getOrElse(0)
-      if (l != 0) {
-          acc + " " + l
-      }else{
-        acc
-      }
+      acc + " " + (-x)
     }).trim;
-
-    log.info(s"False combination of literals: [$key] for clause ${clause.id}")
-
-    var put = new Put(key.getBytes)
-    put.add("cf".getBytes, "a".getBytes, clause.toString.getBytes);
-    table.put(put);
-    log.info (s"Key [${key}] saved...")
-
+    log.debug(s"Adding key: $key with value ${clause.literals.toString}")
+    saveToHBaseInvalidLiteral(key, clause.literals.toString)
   }
 
 
@@ -105,24 +80,35 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
    */
   override def map(key: LongWritable, value: Text, context: Context) {
     var start = System.currentTimeMillis();
-    log.info(s"Starting mapper with key $key, value: ${value.toString}, depth: $numberOfSplits")
-    var fixed: Set[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
+    var fixed: List[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
+    log.trace(s"[Iteration $iteration|fixed: $fixedLiteralsNumber] Mapper value: ${value.toString}, fixed: ${fixed.toString()}")
 
-    var execStats = searchForLiterals(fixed, Set(), value, context, numberOfSplits);
+    var execStats = searchForLiterals(fixed, List(), value, context, depth);
+
+    if (iteration > 1){
+      var s : String = null;
+      s.toString;
+    }
 
     log.info(
       s"""
-         |Finishing... ### Mapper Stats ###
+         |##################    Mapper Stats   ###################
+         |Mapper thread ID: ${Thread.currentThread().getId}
+         ||Mapper thread Name: ${Thread.currentThread().getName}
+         |Iteration $iteration
+         |fixed: $fixedLiteralsNumber
          |ExecTime: ${(System.currentTimeMillis() - start) / 1000} seconds
          |Sols found : ${execStats._1} | Pruned: ${execStats._2}
+         |########################################################
        """.stripMargin);
+
   }
 
-  def searchForLiterals(fixed: Set[Int], selected: Set[Int], value: Text, context: Context, depth: Int): (Int, Int) = {
+  def searchForLiterals(fixed: List[Int], selected: List[Int], value: Text, context: Context, depth: Int): (Int, Int) = {
     if (depth == 0) {
-      var satString = SatMapReduceHelper.createSatString(fixed ++ selected)
-      log.debug(s"Subproblem is a valid subsolution, output: $satString")
-      context.write(value, new Text(satString.getBytes));
+      var satSelectedLiterals = SatMapReduceHelper.createSatString(selected)
+      var satFixedLiterals = SatMapReduceHelper.createSatString(fixed)
+      context.write(value, new Text((satFixedLiterals + satSelectedLiterals).getBytes));
       return (1, 0)
     } else {
       var subsolsFound = 0
@@ -142,10 +128,12 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
           subsolsFound = subsolsFound + ij._1
           pruned = pruned + ij._2
         }
-
         val subproblemPositive = fixedSubproblem ++ Set(-l)
+        log.debug(s"Selected -$l, subproblem: $subproblemPositive")
         if (!evaluateSubproblem(subproblemPositive)) {
           var clauses = formula.getFalseClauses(subproblemPositive)
+          log.debug(s"Problem instance ${subproblemPositive} makes the following clauses false:")
+          clauses.foreach(c => log.debug(s"clause: ${c.literals} ${c.id}"))
           clauses.foreach(clause => addLiteralsToDB(clause, subproblemPositive));
           //prune => do not search in this branch.
           pruned = pruned + 1;
@@ -154,20 +142,30 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
           subsolsFound = subsolsFound + ij._1
           pruned = pruned + ij._2
         }
+      }else{
+        var satSelectedLiterals = SatMapReduceHelper.createSatString(selected)
+        var satFixedLiterals = SatMapReduceHelper.createSatString(fixed)
+        context.write(new Text(satSelectedLiterals), new Text(satFixedLiterals));
+        subsolsFound = 1;
+        pruned = 0;
       }
       return (subsolsFound, pruned);
     }
   }
 
-  private def evaluateSubproblem(subproblem: Set[Int]): Boolean = {
+  private def evaluateSubproblem(subproblem: List[Int]): Boolean = {
     if (!existsInKnowledgeBase(subproblem)) {
-      return formula.isSatisfasiable(subproblem)
+      return formula.isSatisfasiable(subproblem, log)
     }
     return false;
   }
 
-  private def selectLiteral(vars: Set[Int]): Int = {
-    (1 to formula.n).foreach(x => {
+  private def selectLiteral(vars: List[Int]): Int = {
+    //iterate the literals by order of appearence in clauses.
+    formula
+      .getLiteralsInOrder()
+      .slice(fixedLiteralsNumber-1, formula.n)
+      .foreach(x => {
       if (!vars.contains(x) && !vars.contains(-x)) {
         return x;
       }
@@ -176,14 +174,15 @@ class SatMapReduceMapper extends Mapper[LongWritable, Text, Text, Text] with Con
   }
 
 
-  private def existsInKnowledgeBase(vars: Set[Int]): Boolean = {
+  private def existsInKnowledgeBase(vars: List[Int]): Boolean = {
     var found = false;
-    for(invalidSet <- invalidLiterals if !found){
-      if (invalidSet subsetOf vars){
+    for (invalidSet <- invalidLiterals if !found) {
+      if (invalidSet.toSet subsetOf vars.toSet) {
+        log.debug(s"Set ${invalidSet.toSet} is a subset of ${vars.toSet}")
         found = true
       }
     }
-    return false;
+    return found;
 
   }
 

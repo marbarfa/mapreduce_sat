@@ -14,6 +14,13 @@ object SatMapReduceConstants {
 
   val variable_literals_amount = 2
 
-
+  object config {
+    val iteration = "iteration"
+    val number_of_mappers = "numbers_of_mappers"
+    val depth = "depth"
+    val start_miliseconds = "start_miliseconds"
+    val problem_path = "problem_path"
+    val fixed_literals = "fixed_literals"
+  }
 
 }

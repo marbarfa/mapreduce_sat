@@ -21,7 +21,7 @@ class SatMapReduceReducer extends Reducer[Text,Text,NullWritable,Text] with Conv
   var iteration : Int = _
   var satProblem: String = _
 
-  override def setup(context: Reducer[Text,Text,NullWritable,Text]#Context) {
+  override def setup(context: Reducer[Text, Text, NullWritable, Text]#Context) {
     // retrieve 3SAT instance.
     satProblem = context.getConfiguration.get("problem_path");
     if (formula == null) {
@@ -31,17 +31,15 @@ class SatMapReduceReducer extends Reducer[Text,Text,NullWritable,Text] with Conv
     iteration = context.getConfiguration.getInt("iteration", 1);
     startTime = context.getConfiguration.getLong("start_miliseconds", 0);
 
-    // Get HBase table of invalid variable combination
-    val hconf = HBaseConfiguration.create
-    table = new HTable(hconf, "var_tables")
+    initHTable()
   }
 
-  protected override def cleanup(context: Reducer[Text,Text,NullWritable,Text]#Context){
+  protected override def cleanup(context: Reducer[Text, Text, NullWritable, Text]#Context) {
     formula = null;
     table = null;
   }
 
-  def saveSolution(solutionMap: Set[Int]) = {
+  def saveSolution(solutionMap: List[Int]) = {
     log.debug(s"Saving solution ${solutionMap.toString()} to ${SatMapReduceConstants.sat_solution_path}")
     //save solution to file.
     var solutionString = SatMapReduceHelper.createSatString(solutionMap);

@@ -1,5 +1,6 @@
 package main.scala.domain
 
+import org.apache.log4j.Logger
 import scala.collection.immutable.HashMap
 
 /**
@@ -13,20 +14,26 @@ class Formula {
   var n: Int = _
   var m: Int = _
 
+  var literalsInOrder : List[Int] = null;
+
+
+
   /**
    * @return true if the formula is satisfiable
    */
-  def isSatisfasiable(literals: Set[Int]): Boolean = {
+  def isSatisfasiable(literals: List[Int], log : Logger): Boolean = {
     var res = true
-    var affectedClauses = getClauses(literals)
-    for (c <- affectedClauses) {
+    var affectedClauses = getClauses(literals, log)
+    for (c <- affectedClauses if res) {
       res = res && c.isSatisfasiable(literals)
     }
     return res
   }
 
-  def getClauses(literals : Set[Int]) : List[Clause] =
-     literals.foldLeft(List[Clause]()) {(list, key) => list ::: clausesOfVars.getOrElse(math.abs(key), List[Clause]())}
+  def getClauses(literals : List[Int], log: Logger) : List[Clause] = {
+    var clauses = literals.foldLeft(List[Clause]()) {(list, key) => list ::: clausesOfVars.getOrElse(math.abs(key), List[Clause]())}
+    return clauses;
+  }
 
 
   /**
@@ -36,23 +43,36 @@ class Formula {
    * @param clause
    */
   def addClauseOfVar(literal: Int, clause: Clause) {
-    clausesOfVars += (literal -> (clause :: clausesOfVars.getOrElse(literal, List[Clause]())))
+    var literalAbs = math.abs(literal);
+    clausesOfVars += (literalAbs -> (clause :: clausesOfVars.getOrElse(literalAbs, List[Clause]())))
   }
 
-  def getFalseClauses(literals: Set[Int]): List[Clause] = {
+  def getFalseClauses(literals: List[Int]): List[Clause] = {
     var falseClauses = List[Clause]();
 
     literals.foreach(literal => {
       clausesOfVars
         .getOrElse(math.abs(literal), List[Clause]())
         .foreach(clause => {
-        if (!clause.isSatisfasiable(literals)) {
+        if (!falseClauses.contains(clause) &&
+            !clause.isSatisfasiable(literals)) {
           falseClauses ::= clause
         }
       })
     })
 
     return falseClauses;
+  }
+
+  /**
+   * Order clausesOfVars by how many clauses are related to each literal
+   * @return
+   */
+  def getLiteralsInOrder() : List[Int] = {
+    if (literalsInOrder == null){
+      literalsInOrder = clausesOfVars.toSeq.sortBy(_._2.size).reverse.toList map (x=> x._1)
+    }
+    return literalsInOrder;
   }
 
 }
