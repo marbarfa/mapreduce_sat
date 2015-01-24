@@ -8,7 +8,7 @@ import org.apache.hadoop.conf.{Configuration, Configured}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{Delete, Scan, ResultScanner, HTable, Result}
-import org.apache.hadoop.io.Text
+import org.apache.hadoop.io.{NullWritable, LongWritable, Text}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat, NLineInputFormat}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.hadoop.util.Tool
@@ -26,6 +26,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
   var depth: Int = _
   var numberOfMappers: Int = _
   var numberOfLiterals: Int = _
+  val withHbase = false;
 
   /**
    * Main SAT program.
@@ -82,7 +83,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
                 | Time: ${(System.currentTimeMillis() - startTime) / 1000} seconds
                 | Interation: ${job.iteration} | Fixed: $fixedLit
               """.stripMargin,
-              SatMapReduceConstants.sat_exec_evolution + instance_path, true);
+              s"${SatMapReduceConstants.sat_exec_evolution}-${instance_path.split("/").last}-${startTime}", true);
 
             var subprobCounter = job.getCounters.findCounter(EnumMRCounters.SUBPROBLEMS)
             var subproblemsCount = subprobCounter.getValue.toInt;
@@ -108,7 +109,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
                 | Problem: $instance_path
                 | ##########################################################################
               """.stripMargin,
-                SatMapReduceConstants.sat_not_solution_path + instance_path, true);
+                s"${SatMapReduceConstants.sat_not_solution_path}-${instance_path.split("/").last}-${startTime.toString}", true);
 
               end = true;
             }
@@ -141,14 +142,16 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     }
 
     //cleanup DB.
-    log.info("Cleaning up database...")
-    val hconf = HBaseConfiguration.create
-    var hTable = new HTable(hconf, "var_tables")
-    var scanner: ResultScanner = hTable.getScanner(new Scan());
+    if (withHbase){
+      log.info("Cleaning up database...")
+      val hconf = HBaseConfiguration.create
+      var hTable = new HTable(hconf, "var_tables")
+      var scanner: ResultScanner = hTable.getScanner(new Scan());
 
-    for (result: Result <- scanner.asScala) {
-      var delete = new Delete(result.getRow);
-      hTable.delete(delete);
+      for (result: Result <- scanner.asScala) {
+        var delete = new Delete(result.getRow);
+        hTable.delete(delete);
+      }
     }
 
   }
@@ -190,8 +193,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     job.setMapperClass(classOf[SatMapReduceMapper])
     job.setReducerClass(classOf[SatMapReduceReducer])
 
-
-    job.setOutputKeyClass(classOf[Text])
+    job.setOutputKeyClass(classOf[LongWritable])
     job.setOutputValueClass(classOf[Text])
 
     var lines_per_map = numberOfProblems / numberOfMappers;
@@ -205,7 +207,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
          |iteration            : ${iteration.toString}
          |depth                : ${depth.toString}
          |path                 : $instance_path
-         |fixed lits           : $fixedLiterals
+         |fixed literals       : $fixedLiterals
          |mappers              : $numberOfMappers
          |number Of problems   : $numberOfProblems
          |lines/map            : $lines_per_map
@@ -218,9 +220,9 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     job.getConfiguration.setInt(SatMapReduceConstants.config.fixed_literals, fixedLiterals);
     job.getConfiguration.setInt("mapreduce.input.lineinputformat.linespermap", lines_per_map);
 
-//    job.setNumReduceTasks(numberOfMappers * 1.5 toInt);
-    //    job.getCounters.addGroup("EnumMRCounters", "SUBPROBLEMS")
-    //    job.getCounters.addGroup("EnumMRCounters", "SOLUTIONS")
+    job.setNumReduceTasks(lines_per_map);
+//    job.getCounters.addGroup(classOf[EnumMRCounters].getName, EnumMRCounters.SUBPROBLEMS.toString)
+//    job.getCounters.addGroup(classOf[EnumMRCounters].getName, EnumMRCounters.SOLUTIONS.toString)
 
 
     //use NLineInputFormat => each mapper will receive one line of the file

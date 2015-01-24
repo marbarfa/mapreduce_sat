@@ -45,7 +45,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
                   Integer.parseInt(x)
                 else
                   0)
-      .filter(x => x>0)
+      .filter(x => x!=0)
       .toList
 
   }
@@ -60,6 +60,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    * @return
    */
   def createMap(vars: List[Int], intBinaryValue: String): List[Int] = {
+    log.debug(s"Creating map from ${vars}, binary value: ${intBinaryValue}")
     var res = List[Int]()
     for (i <- 0 until vars.size) {
       if (Integer.parseInt(intBinaryValue.charAt(i).toString) == 0) {
@@ -68,6 +69,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
         res = res ++ List(vars(i))
       }
     }
+    log.debug(s"Returning map from ${res}")
     return res;
   }
 
@@ -132,7 +134,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
     literals
       .sorted
       .foldLeft("")((varStr, b) =>
-      varStr + " " + b) + "\n"
+      varStr + " " + b)
 
   /**
    * Converts a int value to a binary string of @digits digits.

@@ -1,12 +1,13 @@
 package main.scala.domain
 
+import main.scala.utils.SatLoggingUtils
 import org.apache.log4j.Logger
 import scala.collection.immutable.HashMap
 
 /**
  * Created by marbarfa on 3/2/14.
  */
-class Formula {
+class Formula extends SatLoggingUtils {
 
   var clauses: List[Clause] = List[Clause]()
   var clausesOfVars: Map[Int, List[Clause]] = new HashMap[Int, List[Clause]]()
@@ -71,6 +72,7 @@ class Formula {
   def getLiteralsInOrder() : List[Int] = {
     if (literalsInOrder == null){
       literalsInOrder = clausesOfVars.toSeq.sortBy(_._2.size).reverse.toList map (x=> x._1)
+      log.info(s"Literals in order: ${literalsInOrder}")
     }
     return literalsInOrder;
   }
