@@ -3,7 +3,7 @@ package main.scala.hadoop
 import java.util.Date
 import main.java.enums.EnumMRCounters
 import main.scala.common.{SatMapReduceConstants, SatMapReduceHelper}
-import main.scala.utils.{SatLoggingUtils, CacheHelper, ISatCallback, SatReader}
+import main.scala.utils._
 import org.apache.hadoop.conf.{Configuration, Configured}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.hbase.HBaseConfiguration
@@ -19,14 +19,14 @@ import scala.collection.JavaConverters._
  * Created by marbarfa on 1/13/14.
  * Main MapReduce program. This program is the main job for the MapReduce SAT solver.
  */
-object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
+object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HBaseHelper{
 
   var instance_path: String = _
   var startTime: Long = _
   var depth: Int = _
   var numberOfMappers: Int = _
   var numberOfLiterals: Int = _
-  val withHbase = false;
+  val withHbase = true;
 
   /**
    * Main SAT program.
@@ -50,6 +50,9 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
 
       log.info("Starting mapreduce algorithm...")
       log.info("Cleaning previous information...")
+      if (withHbase)
+        initHTable();
+
       cleanup()
 
       startTime = System.currentTimeMillis();
@@ -63,9 +66,9 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
       var end = false;
       while (finishedOk && !end) {
         log.info(s"#################################################################################################")
-        var solCounter = job.getCounters.findCounter(EnumMRCounters.SOLUTIONS)
-        if (SatReader.readSolution(instance_path) || solCounter != null && solCounter.getValue > 0) {
-          log.info(s"Solution file found!, found ${solCounter.getValue} solutions..., finishing algorithm....")
+        var solFound = retrieveSolution(instance_path)
+        if (solFound) {
+          log.info(s"Solution found!, finishing algorithm....")
           end = true;
         } else {
           log.info(s"#################################################################################################")
@@ -144,14 +147,18 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     //cleanup DB.
     if (withHbase){
       log.info("Cleaning up database...")
-      val hconf = HBaseConfiguration.create
-      var hTable = new HTable(hconf, "var_tables")
-      var scanner: ResultScanner = hTable.getScanner(new Scan());
-
-      for (result: Result <- scanner.asScala) {
+      var scann = table.getScanner("invalid_literals".getBytes, "a".getBytes)
+      for (result: Result <- scann.asScala) {
         var delete = new Delete(result.getRow);
-        hTable.delete(delete);
+        table.delete(delete);
       }
+      scann = table.getScanner("path".getBytes, "a".getBytes);
+      for (result: Result <- scann.asScala) {
+        var delete = new Delete(result.getRow);
+        table.delete(delete);
+      }
+      log.info("Finish cleaning up database...")
+
     }
 
   }
@@ -163,7 +170,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils {
     var formula = SatReader.read3SatInstance(instance_path);
     numberOfLiterals = formula.n;
 
-    var initialDepth = 4;
+    var initialDepth = Math.sqrt(numberOfMappers * 2).toInt;
     //generate problem split -> first choose which literals use as variables and how many.
     var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), initialDepth, formula);
     SatMapReduceHelper.genearteProblemMap(problemSplitVars, new ISatCallback[List[Int]] {

@@ -22,6 +22,7 @@ with HBaseHelper {
   var satProblem: String = _
   var withHbase = false
   var startupTime : Long = _
+  var solFound : Boolean = _
   type Context = Reducer[LongWritable, Text, NullWritable, Text]#Context
 
   override def setup(context: Context) {
@@ -35,8 +36,10 @@ with HBaseHelper {
     startTime = context.getConfiguration.getLong("start_miliseconds", 0);
     fixedLiteralsNumber = context.getConfiguration.getInt("fixed_literals", 0);
 
-    if (withHbase)
+    if (withHbase){
       initHTable()
+      solFound = retrieveSolution(satProblem)
+    }
   }
 
   protected override def cleanup(context: Context) {
@@ -64,23 +67,25 @@ with HBaseHelper {
 
   override def reduce(key: LongWritable, values: lang.Iterable[Text], context: Context) {
     values.asScala.foreach(v => {
-      val literalDefinition = SatMapReduceHelper.parseInstanceDef(v.toString.trim)
-      if (formula.n == literalDefinition.size) {
-        log.debug(s"All literals are set, possible solution found!: ${v.toString.trim}")
-        //all literals are set.
-        if (formula.isSatisfasiable(literalDefinition, log)) {
-          log.info(s"Solution found = ${literalDefinition.toString()}!!!")
-          saveSolution(literalDefinition);
-          context.getCounter(EnumMRCounters.SOLUTIONS).increment(1);
+      if (!solFound){
+        val literalDefinition = SatMapReduceHelper.parseInstanceDef(v.toString.trim)
+        if (formula.n == literalDefinition.size) {
+          log.debug(s"All literals are set, possible solution found!: ${v.toString.trim}")
+          //all literals are set.
+          if (formula.isSatisfasiable(literalDefinition, log)) {
+            log.info(s"Solution found = ${literalDefinition.toString()}!!!")
+            saveSolution(literalDefinition);
+            context.getCounter(EnumMRCounters.SOLUTIONS).increment(1);
+          } else {
+            log.info(s"Solution ${literalDefinition.toString()} not satisfasiable!")
+          }
         } else {
-          log.info(s"Solution ${literalDefinition.toString()} not satisfasiable!")
+          context.getCounter(EnumMRCounters.SUBPROBLEMS).increment(1);
+          //still a partial solution
+          var ps = SatMapReduceHelper.createSatString(literalDefinition)
+          log.info(s"Partial solution: ${ps} of $literalDefinition")
+          context.write(NullWritable.get(), new Text(ps.getBytes))
         }
-      } else {
-        context.getCounter(EnumMRCounters.SUBPROBLEMS).increment(1);
-        //still a partial solution
-        var ps = SatMapReduceHelper.createSatString(literalDefinition)
-        log.info(s"Partial solution: ${ps} of $literalDefinition")
-        context.write(NullWritable.get(), new Text(ps.getBytes))
       }
     })
   }

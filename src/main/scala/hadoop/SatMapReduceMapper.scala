@@ -24,7 +24,10 @@ with SatLoggingUtils with HBaseHelper {
   var formula: Formula = _
   var depth: Int = _
   var iteration : Int = _
-  var withHbase = false
+  var withHbase = true
+  var satProblem : String = _
+  var solFound : Boolean = _
+  var startTime : Long = _
   type Context = Mapper[LongWritable, Text, LongWritable, Text]#Context
 
   var invalidLiterals: List[List[Int]] = List[List[Int]]()
@@ -35,18 +38,24 @@ with SatLoggingUtils with HBaseHelper {
       formula = CacheHelper.sat_instance(context.getConfiguration.get(SatMapReduceConstants.config.problem_path))
     }
 
+    satProblem = context.getConfiguration.get("problem_path");
     depth = context.getConfiguration.get(SatMapReduceConstants.config.depth).toInt
     iteration = context.getConfiguration.get(SatMapReduceConstants.config.iteration).toInt
+    startTime = context.getConfiguration.getLong("start_miliseconds", 0);
+
 
     if (withHbase){
       initHTable();
-      invalidLiterals = retrieveInvalidLiterals
-      log.debug("------------------------------------")
-      log.debug(s"Invalid literals combinations:")
-      invalidLiterals.foreach(l => {
-        log.debug(s"[${l.toString()}}]")
-      })
-      log.trace("------------------------------------")
+      solFound = retrieveSolution(satProblem)
+      if (!solFound){
+        invalidLiterals = retrieveInvalidLiterals
+        log.debug("------------------------------------")
+        log.debug(s"Invalid literals combinations:")
+        invalidLiterals.foreach(l => {
+          log.debug(s"[${l.toString()}}]")
+        })
+        log.trace("------------------------------------")
+      }
     }
   }
 
@@ -81,13 +90,14 @@ with SatLoggingUtils with HBaseHelper {
    */
   override def map(key: LongWritable, value: Text, context: Context) {
     val start = System.currentTimeMillis();
-    val fixed: List[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
-    log.debug(s"[Iteration $iteration|fixed: ${fixed.size} Mapper value: ${value.toString}, fixed: ${fixed.toString()}")
-    if (fixed.size > 0) {
-      val execStats = searchForLiterals(fixed, List(), key, context, depth);
+    if (!solFound){
+      val fixed: List[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
+      log.debug(s"[Iteration $iteration|fixed: ${fixed.size} Mapper value: ${value.toString}, fixed: ${fixed.toString()}")
+      if (fixed.size > 0) {
+        val execStats = searchForLiterals(fixed, List(), key, context, depth);
 
-      log.info(
-        s"""
+        log.info(
+          s"""
          |##################    Mapper Stats   ###################
          |Mapper thread ID: ${Thread.currentThread().getId}
          ||Mapper thread Name: ${Thread.currentThread().getName}
@@ -97,6 +107,7 @@ with SatLoggingUtils with HBaseHelper {
          |Sols found : ${execStats._1} | Pruned: ${execStats._2}
          |########################################################
        """.stripMargin);
+      }
     }
 
   }
@@ -111,7 +122,7 @@ with SatLoggingUtils with HBaseHelper {
   def searchForLiterals(fixed: List[Int], selected: List[Int], key: LongWritable, context: Context, depth: Int): (Int, Int) = {
     if (depth == 0) {
       val satSubproblem = SatMapReduceHelper.createSatString(fixed ++ selected)
-      context.write(key, new Text(satSubproblem.getBytes));
+      context.write(new LongWritable(Thread.currentThread().getId), new Text(satSubproblem.getBytes));
       return (1, 0)
     } else {
       var subsolsFound = 0
@@ -152,8 +163,17 @@ with SatLoggingUtils with HBaseHelper {
           pruned = pruned + ij._2
         }
       }else{
-        val satSelectedLiterals = SatMapReduceHelper.createSatString(fixed ++ selected)
-        context.write(key, new Text(satSelectedLiterals));
+        if ((fixed ++ selected).size == formula.n){
+          //all literals set!, check if its a solution:
+          val satSelectedLiterals = SatMapReduceHelper.createSatString(fixed ++ selected)
+          if (formula.isSatisfasiable(fixed ++ selected, log)){
+            val satSelectedLiterals = SatMapReduceHelper.createSatString(fixed ++ selected)
+            context.write(new LongWritable(Thread.currentThread().getId), new Text(satSelectedLiterals));
+            saveToHBaseSolFound(satSelectedLiterals, satProblem, startTime)
+          }else {
+            context.write(new LongWritable(Thread.currentThread().getId), new Text(satSelectedLiterals));
+          }
+        }
         subsolsFound = 1;
         pruned = 0;
       }
