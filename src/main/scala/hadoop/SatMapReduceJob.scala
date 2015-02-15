@@ -170,7 +170,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
     var formula = SatReader.read3SatInstance(instance_path);
     numberOfLiterals = formula.n;
 
-    var initialDepth = Math.sqrt(numberOfMappers * 2).toInt;
+    var initialDepth = (Math.log(numberOfMappers * 2) / Math.log(2)).toInt;
     //generate problem split -> first choose which literals use as variables and how many.
     var problemSplitVars = SatMapReduceHelper.generateProblemSplit(List(), initialDepth, formula);
     SatMapReduceHelper.genearteProblemMap(problemSplitVars, new ISatCallback[List[Int]] {

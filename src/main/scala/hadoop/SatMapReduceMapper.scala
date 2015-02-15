@@ -182,10 +182,10 @@ with SatLoggingUtils with HBaseHelper {
   }
 
   private def evaluateSubproblem(subproblem: List[Int]): Boolean = {
-    if (!withHbase || !existsInKnowledgeBase(subproblem)) {
+//    if (!withHbase || !existsInKnowledgeBase(subproblem)) {
       return formula.isSatisfasiable(subproblem, log)
-    }
-    return false;
+//    }
+//    return false;
   }
 
   private def selectLiteral(vars: List[Int]): Int = {
