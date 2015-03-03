@@ -1,13 +1,7 @@
 package main.scala.hadoop
 
-import main.scala.common.SatMapReduceHelper
-import main.scala.utils.CacheHelper
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
-import org.apache.hadoop.util.{ToolRunner, Tool}
+import org.apache.hadoop.util.ToolRunner
 
 
 /**
