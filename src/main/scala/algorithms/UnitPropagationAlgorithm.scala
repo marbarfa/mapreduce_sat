@@ -48,8 +48,23 @@ object UnitPropagationAlgorithm extends AbstractAlgorithm[Void, (Formula, List[I
         for (l <- clause.literals)
           formula.addClauseOfVar(l, clause)
       }
+      var clausesToRemove = List[Clause]();
+
+      for(cl <- formula.clauses){
+        if (cl.literals.size == 1 && upData.fixed.contains(-cl.literals(0))){
+          //only one literal remaining in the clause and the literal is fixed negated ==> Formula false!!
+          return null
+        }else if (cl.literals.size == 1) {
+          //only one literal remaining in the clause and the literal is not fixed
+          clausesToRemove = clausesToRemove ++ List(cl)
+          //if the literal
+          if (!upData.fixed.contains(cl.literals.apply(0)))
+            newFixed = newFixed ++ List(cl.literals.apply(0))
+        }
+      }
+      formula.clauses = formula.clauses.filter(p => clausesToRemove.contains(p))
     }
 
-    return formula
+    return (formula, newFixed)
   }
 }

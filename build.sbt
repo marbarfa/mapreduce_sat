@@ -11,14 +11,15 @@ scalaVersion := scalaCompilerVersion
 
 //autoScalaLibrary := false
 exportJars := true
-
+//SCALA
 libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaCompilerVersion
-
 libraryDependencies += "org.scala-lang" % "scala-library" % scalaCompilerVersion
-
 libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaCompilerVersion
 
-// Hadoop Dependencies
+//JSON
+libraryDependencies += "org.json4s" %% "json4s-native" % "3.2.11"
+
+//HADOOP
 libraryDependencies ++= Seq(
   "org.apache.hadoop" % "hadoop-common" % hadoopVersion % Compile,
   "org.apache.hadoop" % "hadoop-hdfs" % hadoopVersion % Compile,
@@ -30,7 +31,7 @@ libraryDependencies ++= Seq(
   "org.apache.hadoop" % "hadoop-yarn-common" % hadoopVersion % Compile
 )
 
-//HBase dependencies
+//HBASE
 libraryDependencies ++= Seq(
   "org.apache.hbase" % "hbase-client" % hbaseVersion % Compile,
   "org.apache.hbase" % "hbase-it" % hbaseVersion % Compile,

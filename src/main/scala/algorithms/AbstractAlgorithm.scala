@@ -6,7 +6,7 @@ import main.scala.utils.ISatCallback
 /**
  * Created by mbarreto on 3/3/15.
  */
-trait AbstractAlgorithm[T,R] {
+trait AbstractAlgorithm[R] {
 
   /**
    * Applies the algorithm given the imputs and calls @callback when a solution
@@ -16,7 +16,6 @@ trait AbstractAlgorithm[T,R] {
    * @param fixed currently fixed variables
    * @param selected currently selected variables
    */
-  def applyAlgorithm(algorithmData: AlgorithmData,
-      callback: ISatCallback[T]): R
+  def applyAlgorithm(algorithmData: AlgorithmData) : R
 
 }

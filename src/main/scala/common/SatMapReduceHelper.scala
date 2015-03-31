@@ -124,7 +124,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
     }
 
     var br = new BufferedWriter(new OutputStreamWriter(fs.create(new Path(savePath))));
-    br.write(saveStr);
+    br.write(saveStr)
     br.flush()
     br.close()
   }

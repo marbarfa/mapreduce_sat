@@ -63,6 +63,10 @@ with SatLoggingUtils with HBaseHelper {
       val fixed: List[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
       log.debug(s"[Iteration $iteration|fixed: ${fixed.size} Mapper value: ${value.toString}, fixed: ${fixed.toString()}")
       if (fixed.size > 0) {
+        //Apply DFS algorithm
+
+        //Apply Schöning algorithm
+
         val execStats = searchForLiterals(fixed, List(), context, depth);
 
         log.info(
