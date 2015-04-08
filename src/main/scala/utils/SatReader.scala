@@ -1,7 +1,7 @@
-package main.scala.utils
+package utils
 
-import main.scala.common.SatMapReduceConstants
-import main.scala.domain.{Formula, Clause}
+import common.SatMapReduceConstants
+import domain.{Formula, Clause}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{Path, FileSystem}
 import scala.io.Source

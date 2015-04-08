@@ -1,3 +1,4 @@
+
 name := "mapreduce-3sat"
 
 version := "1.0"
@@ -7,7 +8,7 @@ def hadoopVersion = "2.4.0"
 def hbaseVersion = "0.98.6.1-hadoop2"
 
 scalaVersion := scalaCompilerVersion
-
+compileOrder := CompileOrder.Mixed
 
 //autoScalaLibrary := false
 exportJars := true
@@ -15,9 +16,6 @@ exportJars := true
 libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaCompilerVersion
 libraryDependencies += "org.scala-lang" % "scala-library" % scalaCompilerVersion
 libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaCompilerVersion
-
-//JSON
-libraryDependencies += "org.json4s" %% "json4s-native" % "3.2.11"
 
 //HADOOP
 libraryDependencies ++= Seq(

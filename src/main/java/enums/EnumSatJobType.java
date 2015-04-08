@@ -1,4 +1,4 @@
-package main.java.enums;
+package enums;
 
 /**
  * Created by marbarfa on 2/12/14.

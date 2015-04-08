@@ -1,7 +1,11 @@
-package main.scala.utils
+package utils
 
+import java.security.MessageDigest
+
+import main.scala.domain.Formula
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{Put, HTable}
+import sun.security.provider.MD5
 
 /**
  * Created by mbarreto on 1/17/15.
@@ -137,6 +141,15 @@ trait HBaseHelper extends SatLoggingUtils {
     put.add("solution".getBytes, problemSplit.getBytes, sol.getBytes);
     table.put(put);
     log.trace(s"Key [$sol] with value [$sol] saved...")
+  }
+
+  protected def md5(s : String): String = MessageDigest.getInstance("MD5").digest(s.getBytes).toString
+
+  def saveToHBaseFormula(assignment: String, formula: Formula) = {
+    var md5Key = md5(assignment)
+    var put = new Put(md5Key.getBytes)
+    put.add("formulas".getBytes, "a".getBytes, formula.toCNF.getBytes);
+    table.put(put);
   }
 
   def saveToHBaseLiteralPath(fixedLiterals: String, foundLiterals: String) {

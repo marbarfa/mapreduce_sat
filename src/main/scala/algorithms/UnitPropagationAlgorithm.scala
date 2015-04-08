@@ -17,15 +17,13 @@ import main.scala.utils.ISatCallback
  *
  * Created by mbarreto on 3/8/15.
  */
-object UnitPropagationAlgorithm extends AbstractAlgorithm[Void, (Formula, List[Int])] {
+object UnitPropagationAlgorithm extends AbstractAlgorithm[(Formula, List[Int])] {
   /**
    * Applies the algorithm given the imputs and calls @callback when a solution
    * is found.
    * Returns (new formula, fixed literals) (if any)
-   * @param callback is called when a solution is found
    */
-  override def applyAlgorithm(upData : AlgorithmData,
-                              callback: ISatCallback[Void]): (Formula, List[Int]) = {
+  override def applyAlgorithm(upData : AlgorithmData) : (Formula, List[Int]) = {
     val formula : Formula = new Formula()
     var newFixed : List[Int] = List[Int]()
 

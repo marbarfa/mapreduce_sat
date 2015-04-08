@@ -1,9 +1,9 @@
-package main.scala.hadoop
+package hadoop
 
 import java.util.Date
-import main.java.enums.EnumMRCounters
-import main.scala.common.{SatMapReduceConstants, SatMapReduceHelper}
-import main.scala.utils._
+import enums.EnumMRCounters
+import common.{SatMapReduceConstants, SatMapReduceHelper}
+import utils._
 import org.apache.hadoop.conf.{Configuration, Configured}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.hbase.HBaseConfiguration

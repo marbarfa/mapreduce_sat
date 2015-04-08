@@ -1,4 +1,4 @@
-package main.scala.common
+package common
 
 /**
  * Created by marbarfa on 2/27/14.

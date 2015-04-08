@@ -1,4 +1,4 @@
-package main.scala.utils
+package utils
 
 import java.net.URI
 import main.scala.domain.Formula

@@ -1,4 +1,4 @@
-package main.scala.common
+package common
 
 import java.io.{OutputStreamWriter, BufferedWriter, BufferedReader, InputStreamReader}
 import main.scala.domain.Formula

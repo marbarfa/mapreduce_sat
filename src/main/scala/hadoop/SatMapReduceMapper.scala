@@ -1,10 +1,12 @@
-package main.scala.hadoop
+package hadoop
 
 import java.util.Date
 
-import main.scala.common.{SatMapReduceConstants, SatMapReduceHelper}
-import main.scala.domain.{Formula, Clause}
-import main.scala.utils.{HBaseHelper, SatLoggingUtils, ConvertionHelper, CacheHelper}
+import algorithms.{SchoningAlgorithm, DFSAlgorithm}
+import algorithms.types.{SchoningData, DFSData}
+import common.{SatMapReduceConstants, SatMapReduceHelper}
+import domain.{Formula, Clause}
+import utils.{HBaseHelper, SatLoggingUtils, ConvertionHelper, CacheHelper}
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapreduce.Mapper
 
@@ -64,22 +66,26 @@ with SatLoggingUtils with HBaseHelper {
       log.debug(s"[Iteration $iteration|fixed: ${fixed.size} Mapper value: ${value.toString}, fixed: ${fixed.toString()}")
       if (fixed.size > 0) {
         //Apply DFS algorithm
-
-        //Apply Schöning algorithm
-
-        val execStats = searchForLiterals(fixed, List(), context, depth);
-
+        var dfsData = new DFSData(fixed, List[Int](), depth, formula)
+        var resData = DFSAlgorithm.applyAlgorithm(dfsData)
+        context.write(key, new Text(SatMapReduceHelper.createSatString(resData._1)))
         log.info(
           s"""
-             |##################    Mapper Stats   ###################
-             |Mapper thread ID: ${Thread.currentThread().getId}
-              ||Mapper thread Name: ${Thread.currentThread().getName}
-              |Iteration $iteration
-              |fixed: ${fixed.size}
-              |ExecTime: ${(System.currentTimeMillis() - start) / 1000} seconds
-                                                                         |Sols found : ${execStats._1}|Pruned: ${execStats._2}
-              |########################################################
-       """.stripMargin);
+          |##################    Mapper Stats   ###################
+          |fixed: ${resData._1.size}
+          |Sols found : ${resData._2}|Pruned: ${resData._3}
+        """.stripMargin);
+
+        if (resData._1.size < formula.m) {
+          //not all literals set ==> do Schöning algorithm
+          var schoningData = new SchoningData(resData._1,formula)
+          var schResult = SchoningAlgorithm.applyAlgorithm(schoningData)
+          if (schResult != null){
+            // Solution Found
+            saveToHBaseSolFound(SatMapReduceHelper.createSatString(schResult), satProblem, start)
+          }
+        }
+
       }
     }
 
