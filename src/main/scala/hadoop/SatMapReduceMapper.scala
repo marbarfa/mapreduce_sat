@@ -33,10 +33,6 @@ with SatLoggingUtils with HBaseHelper {
 
   protected override def setup(context: Context) {
     // retrieve 3SAT instance.
-    if (formula == null) {
-      formula = CacheHelper.sat_instance(context.getConfiguration.get(SatMapReduceConstants.config.problem_path))
-    }
-
     satProblem = context.getConfiguration.get("problem_path");
     depth = context.getConfiguration.get(SatMapReduceConstants.config.depth).toInt
     iteration = context.getConfiguration.get(SatMapReduceConstants.config.iteration).toInt
@@ -66,6 +62,7 @@ with SatLoggingUtils with HBaseHelper {
       log.debug(s"[Iteration $iteration|fixed: ${fixed.size} Mapper value: ${value.toString}, fixed: ${fixed.toString()}")
       if (fixed.size > 0) {
         //Apply DFS algorithm
+        formula = retrieveFormula(SatMapReduceHelper.createSatString(fixed))
         var dfsData = new DFSData(fixed, List[Int](), depth, formula)
         var resData = DFSAlgorithm.applyAlgorithm(dfsData)
         context.write(key, new Text(SatMapReduceHelper.createSatString(resData._1)))

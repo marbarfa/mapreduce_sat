@@ -8,7 +8,6 @@ public enum EnumSatJobType {
     initial_configuration("init"),
     iteration("rec");
 
-
     private String type = null;
 
     EnumSatJobType(String inputType){

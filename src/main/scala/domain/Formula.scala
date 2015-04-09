@@ -1,5 +1,7 @@
 package domain
 
+import java.io.BufferedReader
+
 import domain.Clause
 import utils.SatLoggingUtils
 import utils.SatReader._
@@ -7,7 +9,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{Path, FileSystem, FSDataInputStream}
 import org.apache.log4j.Logger
 import scala.collection.immutable.HashMap
-import scala.io.Source
+import scala.io.{BufferedSource, Source}
 
 /**
  * Created by marbarfa on 3/2/14.
@@ -104,9 +106,25 @@ class Formula extends SatLoggingUtils {
    * Reads a formula in CNF form from an InputStream
    */
   def fromCNF(dataInputStream: FSDataInputStream) = {
+    doReadCNF(Source.fromInputStream(dataInputStream).getLines())
+  }
+
+  /**
+   * Reads a formula in CNF form from a String
+   * @param cnfFormula
+   */
+  def fromCNF(cnfFormula : String) {
+     doReadCNF(Source.fromString(cnfFormula).getLines())
+  }
+
+  /**
+   * CNF reader
+   * @param cnfLines
+   */
+  private def doReadCNF(cnfLines : Iterator[String]) {
     var clauseIndex: Int = 0;
     var end = false;
-    for (line <- Source.fromInputStream(dataInputStream).getLines() if !end) {
+    for (line <- cnfLines if !end) {
       if (line.startsWith("%")) {
         end = true
       } else {
@@ -143,7 +161,7 @@ class Formula extends SatLoggingUtils {
         }
       }
     }
-
   }
+
 
 }

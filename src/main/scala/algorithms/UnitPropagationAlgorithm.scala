@@ -1,8 +1,8 @@
 package algorithms
 
 import algorithms.types.AlgorithmData
-import main.scala.domain.{Clause, Formula}
-import main.scala.utils.ISatCallback
+import domain.{Clause, Formula}
+import utils.ISatCallback
 
 /**
  * Implementation of the UnitPropagation algorithm.

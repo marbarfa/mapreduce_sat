@@ -1,8 +1,8 @@
 package common
 
 import java.io.{OutputStreamWriter, BufferedWriter, BufferedReader, InputStreamReader}
-import main.scala.domain.Formula
-import main.scala.utils.{ISatCallback, SatLoggingUtils, ConvertionHelper}
+import domain.Formula
+import utils.{ISatCallback, SatLoggingUtils, ConvertionHelper}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 

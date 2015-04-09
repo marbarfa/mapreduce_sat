@@ -19,7 +19,7 @@ import scala.collection.JavaConverters._
  * Created by marbarfa on 1/13/14.
  * Main MapReduce program. This program is the main job for the MapReduce SAT solver.
  */
-object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HBaseHelper{
+object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HBaseHelper {
 
   var instance_path: String = _
   var startTime: Long = _
@@ -50,8 +50,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
 
       log.info("Starting mapreduce algorithm...")
       log.info("Cleaning previous information...")
-      if (withHbase)
-        initHTable();
+      initHTable();
 
       cleanup()
 
@@ -83,13 +82,13 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
             //Save current status to file.
             SatMapReduceHelper.saveStringToFile(
               s"""
-                | Time: ${(System.currentTimeMillis() - startTime) / 1000} seconds
-                | Interation: ${job.iteration} | Fixed: $fixedLit
+                 |Time: ${(System.currentTimeMillis() - startTime) / 1000} seconds
+                                                                            |Interation: ${job.iteration}|Fixed: $fixedLit
               """.stripMargin,
               s"${SatMapReduceConstants.sat_exec_evolution}-${instance_path.split("/").last}-${startTime}", true);
 
             var subprobCounter = job.getCounters.findCounter(EnumMRCounters.SUBPROBLEMS)
-            var subproblemsCount = subprobCounter.getValue.toInt;
+            var subproblemsCount = subprobCounter.getValue.toInt
 
             job = createNewJob(job.output,
               SatMapReduceConstants.sat_tmp_folder_output + "_" + (job.iteration + 1),
@@ -105,12 +104,12 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
 
               SatMapReduceHelper.saveStringToFile(
                 s"""
-                | ##########################################################################
-                | Solution not found
-                | Time: ${(System.currentTimeMillis() - startTime) / 1000} seconds
-                | Interation: ${job.iteration}.
-                | Problem: $instance_path
-                | ##########################################################################
+                   |##########################################################################
+                   |Solution not found
+                   |Time: ${(System.currentTimeMillis() - startTime) / 1000} seconds
+                                                                              |Interation: ${job.iteration}.
+                                                                                                             |Problem: $instance_path
+                    |##########################################################################
               """.stripMargin,
                 s"${SatMapReduceConstants.sat_not_solution_path}-${instance_path.split("/").last}-${startTime.toString}", true);
 
@@ -145,7 +144,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
     }
 
     //cleanup DB.
-    if (withHbase){
+    if (withHbase) {
       log.info("Cleaning up database...")
       var scann = table.getScanner("invalid_literals".getBytes, "a".getBytes)
       for (result: Result <- scann.asScala) {
@@ -168,6 +167,9 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
     var input_path = SatMapReduceConstants.sat_tmp_folder_input + s"_${time.getTime}"
 
     var formula = SatReader.read3SatInstance(instance_path);
+    //the first time, upload the default formula to HBASE
+    saveToHBaseFormula(SatMapReduceConstants.HBASE_FORMULA_DEFAULT, formula)
+
     numberOfLiterals = formula.n;
 
     var initialDepth = Math.sqrt(numberOfMappers * 2).toInt;
@@ -204,7 +206,7 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
     job.setOutputValueClass(classOf[Text])
 
     var lines_per_map = numberOfProblems / numberOfMappers;
-    if (lines_per_map < 1){
+    if (lines_per_map < 1) {
       lines_per_map = 1;
     }
 
@@ -212,12 +214,12 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
       s"""
          |Creating job with parameters:
          |iteration            : ${iteration.toString}
-         |depth                : ${depth.toString}
-         |path                 : $instance_path
-         |fixed literals       : $fixedLiterals
-         |mappers              : $numberOfMappers
-         |number Of problems   : $numberOfProblems
-         |lines/map            : $lines_per_map
+          |depth                : ${depth.toString}
+          |path                 : $instance_path
+          |fixed literals       : $fixedLiterals
+          |mappers              : $numberOfMappers
+          |number Of problems   : $numberOfProblems
+          |lines/map            : $lines_per_map
        """.stripMargin)
 
     job.getConfiguration.set(SatMapReduceConstants.config.iteration, iteration.toString);
@@ -228,8 +230,8 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
     job.getConfiguration.setInt("mapreduce.input.lineinputformat.linespermap", lines_per_map);
 
     job.setNumReduceTasks(lines_per_map);
-//    job.getCounters.addGroup(classOf[EnumMRCounters].getName, EnumMRCounters.SUBPROBLEMS.toString)
-//    job.getCounters.addGroup(classOf[EnumMRCounters].getName, EnumMRCounters.SOLUTIONS.toString)
+    //    job.getCounters.addGroup(classOf[EnumMRCounters].getName, EnumMRCounters.SUBPROBLEMS.toString)
+    //    job.getCounters.addGroup(classOf[EnumMRCounters].getName, EnumMRCounters.SOLUTIONS.toString)
 
 
     //use NLineInputFormat => each mapper will receive one line of the file

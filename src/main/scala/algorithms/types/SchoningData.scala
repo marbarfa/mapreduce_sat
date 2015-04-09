@@ -1,6 +1,6 @@
 package algorithms.types
 
-import main.scala.domain.Formula
+import domain.Formula
 
 /**
  * Created by mbarreto on 3/10/15.

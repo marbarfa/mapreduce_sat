@@ -16,6 +16,8 @@ object SatMapReduceConstants {
   val sat_exec_evolution = "sat_execution_"
   val variable_literals_amount = 2
 
+  val HBASE_FORMULA_DEFAULT = "DEFAULT_KEY"
+
   object config {
     val iteration = "iteration"
     val number_of_mappers = "numbers_of_mappers"

@@ -1,9 +1,9 @@
 package algorithms
 
 import algorithms.types.AlgorithmData
-import main.scala.common.SatMapReduceHelper
-import main.scala.domain.Formula
-import main.scala.utils.{SatLoggingUtils, ISatCallback}
+import common.SatMapReduceHelper
+import domain.Formula
+import utils.{SatLoggingUtils, ISatCallback}
 
 import scala.util.Random
 

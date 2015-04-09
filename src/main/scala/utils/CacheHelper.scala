@@ -1,7 +1,7 @@
 package utils
 
 import java.net.URI
-import main.scala.domain.Formula
+import domain.Formula
 import org.apache.hadoop.mapreduce.Job
 
 /**

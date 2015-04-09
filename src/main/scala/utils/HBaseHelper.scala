@@ -2,7 +2,8 @@ package utils
 
 import java.security.MessageDigest
 
-import main.scala.domain.Formula
+import common.SatMapReduceConstants
+import domain.Formula
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{Put, HTable}
 import sun.security.provider.MD5
@@ -13,6 +14,10 @@ import sun.security.provider.MD5
 trait HBaseHelper extends SatLoggingUtils {
 
   var table: HTable = _
+
+  private object HBaseHelper {
+    var staticFormula : Formula = _
+  }
 
   def initHTable() {
     val hconf = HBaseConfiguration.create
@@ -25,7 +30,7 @@ trait HBaseHelper extends SatLoggingUtils {
     try {
       val it = scanner.iterator();
 
-      while (it.hasNext){
+      while (it.hasNext) {
         val rr = it.next();
         val rowStr = new String(rr.getRow);
 
@@ -47,21 +52,21 @@ trait HBaseHelper extends SatLoggingUtils {
     return invalidLiterals;
   }
 
-  def retrieveSolution(problem: String) : Boolean = {
+  def retrieveSolution(problem: String): Boolean = {
     val problemSplit = problem.split("/").last;
     var scanner = table.getScanner("solution".getBytes, problemSplit.getBytes);
-    try{
+    try {
       val it = scanner.iterator()
-      if (it != null && it.hasNext){
+      if (it != null && it.hasNext) {
         return true;
       }
     } catch {
-      case e : Throwable => log.info(" Error retrieving error");
+      case e: Throwable => log.info(" Error retrieving error");
     }
     return false;
   }
 
-  protected def stringToIntSet(str : String) : List[Int] =
+  protected def stringToIntSet(str: String): List[Int] =
     str.split(" ").foldLeft(List[Int]())((acc, b) =>
       try {
         var intVal = b.trim.toInt
@@ -72,12 +77,12 @@ trait HBaseHelper extends SatLoggingUtils {
       }
     );
 
-  private def getLiteralsPathFromMap(key: String, hbaseInfo: Map[String, List[String]]) : List[List[Int]] ={
+  private def getLiteralsPathFromMap(key: String, hbaseInfo: Map[String, List[String]]): List[List[Int]] = {
     var res = List(stringToIntSet(key))
-    if (hbaseInfo contains key){
+    if (hbaseInfo contains key) {
       hbaseInfo.getOrElse(key.trim, List()).foreach(s => {
         var partialRes = List[Int]()
-        var paths =  getLiteralsPathFromMap(s, hbaseInfo);
+        var paths = getLiteralsPathFromMap(s, hbaseInfo);
         paths.foreach(l => partialRes = partialRes ++ l)
         res = List(partialRes) ++ res
         log.info(s"Returning literal path $res")
@@ -135,7 +140,7 @@ trait HBaseHelper extends SatLoggingUtils {
     log.trace(s"Key [${key}] saved...")
   }
 
-  def saveToHBaseSolFound(sol: String, problem: String, time : Long) {
+  def saveToHBaseSolFound(sol: String, problem: String, time: Long) {
     val problemSplit = problem.split("/").last;
     var put = new Put(s"solution_${problemSplit}_${((System.currentTimeMillis() - time) / 1000)}s".getBytes)
     put.add("solution".getBytes, problemSplit.getBytes, sol.getBytes);
@@ -143,12 +148,54 @@ trait HBaseHelper extends SatLoggingUtils {
     log.trace(s"Key [$sol] with value [$sol] saved...")
   }
 
-  protected def md5(s : String): String = MessageDigest.getInstance("MD5").digest(s.getBytes).toString
+  /**
+   * Retrieves a formula from HBASE, if a formula is not found for the assignment @assignment, the
+   * default formula is used (that should have been loaded in the main job).
+   *
+   * @param assignment the assignment to look for as key of the formula
+   * @return a formula associated with te assignment.
+   *
+   */
+   def retrieveFormula(assignment: String): Formula = {
+    var scanner = table.getScanner("formulas".getBytes, md5(assignment).getBytes);
+    var formula = new Formula();
+
+    try {
+      val it = scanner.iterator()
+      if (it == null || !it.hasNext) {
+        log.info(s"No formula found in HBASE for $assignment")
+        //retrieve the default formula...
+        HBaseHelper.synchronized {
+          if (HBaseHelper.staticFormula == null){
+              scanner = table.getScanner("formulas".getBytes, md5(SatMapReduceConstants.HBASE_FORMULA_DEFAULT).getBytes);
+              val it = scanner.iterator()
+              if (!it.hasNext) {
+                log.error(s"No formula found in HBASE for default value!!!")
+                formula = null
+              } else {
+                var cnfFormula = new String(it.next().value())
+                HBaseHelper.staticFormula = new Formula()
+                HBaseHelper.staticFormula.fromCNF(cnfFormula)
+              }
+            }
+          }
+          formula = HBaseHelper.staticFormula;
+      }else {
+        var cnfFormula = new String(it.next().value())
+        formula.fromCNF(cnfFormula)
+      }
+    } catch {
+      case e: Throwable => log.info(" Error reading formula!");
+    }
+    return formula
+  }
+
+  protected def md5(s: String): String = MessageDigest.getInstance("MD5").digest(s.getBytes).toString
 
   def saveToHBaseFormula(assignment: String, formula: Formula) = {
     var md5Key = md5(assignment)
     var put = new Put(md5Key.getBytes)
-    put.add("formulas".getBytes, "a".getBytes, formula.toCNF.getBytes);
+    put.add("formulas".getBytes, md5Key.getBytes, formula.toCNF.getBytes);
     table.put(put);
   }
 

@@ -1,9 +1,9 @@
 package algorithms
 
 import algorithms.types.{DFSData, AlgorithmData}
-import main.scala.common.SatMapReduceHelper
-import main.scala.domain.Formula
-import main.scala.utils.{SatLoggingUtils, ISatCallback}
+import common.SatMapReduceHelper
+import domain.Formula
+import utils.{SatLoggingUtils, ISatCallback}
 import org.apache.hadoop.io.{Text, LongWritable}
 
 /**

@@ -4,9 +4,9 @@ import java.lang
 import algorithms.{SchoningAlgorithm, DFSAlgorithm, PureLiteralEliminationAlgorithm, UnitPropagationAlgorithm}
 import algorithms.types.{SchoningData, DFSData, AlgorithmData}
 import enums.EnumMRCounters
-import main.scala.common.{SatMapReduceConstants, SatMapReduceHelper}
-import main.scala.domain.Formula
-import main.scala.utils.{HBaseHelper, SatLoggingUtils, ConvertionHelper, CacheHelper}
+import common.{SatMapReduceConstants, SatMapReduceHelper}
+import domain.Formula
+import utils.{HBaseHelper, SatLoggingUtils, ConvertionHelper, CacheHelper}
 import org.apache.hadoop.io.{LongWritable, NullWritable, Text}
 import org.apache.hadoop.mapreduce.Reducer
 import scala.collection.JavaConverters._
@@ -24,16 +24,12 @@ with HBaseHelper {
   var satProblem: String = _
   var startupTime: Long = _
   var solFound: Boolean = _
-  var depth : Int = _
+  var depth: Int = _
   type Context = Reducer[LongWritable, Text, NullWritable, Text]#Context
 
   override def setup(context: Context) {
     // retrieve 3SAT instance.
     satProblem = context.getConfiguration.get("problem_path");
-    if (formula == null) {
-      formula = CacheHelper.sat_instance(satProblem)
-    }
-
     depth = context.getConfiguration.get(SatMapReduceConstants.config.depth).toInt
     iteration = context.getConfiguration.getInt("iteration", 1);
     startTime = context.getConfiguration.getLong("start_miliseconds", 0);
@@ -55,11 +51,11 @@ with HBaseHelper {
       s"""
          |##########################################################################
          |Solution found in ${(System.currentTimeMillis() - startTime) / 1000} seconds
-                                                                                |Solution found in interation $iteration.
-                                                                                                                          |SAT Problem: $satProblem
-          |--------------------------------------------------------------------------
-          |Solution: $solutionString
-          |##########################################################################
+         |Solution found in interation $iteration.
+         |SAT Problem: $satProblem
+         |--------------------------------------------------------------------------
+         |Solution: $solutionString
+         |##########################################################################
       """.stripMargin,
       s"${SatMapReduceConstants.sat_solution_path}-${satProblem.split("/").last}-${startTime.toString}", true);
   }
@@ -68,8 +64,9 @@ with HBaseHelper {
     if (!solFound) {
       values.asScala.foreach(v => {
         val literalDefinition = SatMapReduceHelper.parseInstanceDef(v.toString.trim)
+        formula = retrieveFormula(v.toString.trim)
 
-        if (formula.n <= literalDefinition.size){
+        if (formula.n <= literalDefinition.size) {
           //All literals set
           if (formula.isSatisfasiable(literalDefinition, log)) {
             log.info(s"Solution found = ${literalDefinition.toString()}!!!")
@@ -78,49 +75,49 @@ with HBaseHelper {
           } else {
             log.info(s"Solution ${literalDefinition.toString()} not satisfasiable!")
           }
-        }else{
+        } else {
           //Solution not found yet
 
           //apply unit propagation
-          var data = new AlgorithmData(literalDefinition,formula)
+          var data = new AlgorithmData(literalDefinition, formula)
           var unitPropagationResult = UnitPropagationAlgorithm.applyAlgorithm(data)
-          if (unitPropagationResult._2.size >= formula.n){
+          if (unitPropagationResult._2.size >= formula.n) {
             //all literals set after unit propagation!!
-            if (unitPropagationResult._1.isSatisfasiable(unitPropagationResult._2, log)){
+            if (unitPropagationResult._1.isSatisfasiable(unitPropagationResult._2, log)) {
               //Solution found!!!
               doSolutionFound(unitPropagationResult._2, context)
-            }else{
+            } else {
               //apply pure literal elimination
               data = new AlgorithmData(unitPropagationResult._2, unitPropagationResult._1)
               var pureLiteralElim = PureLiteralEliminationAlgorithm.applyAlgorithm(data)
-              if (pureLiteralElim._2.size >= formula.n){
-                if (pureLiteralElim._1.isSatisfasiable(pureLiteralElim._2, log)){
+              if (pureLiteralElim._2.size >= formula.n) {
+                if (pureLiteralElim._1.isSatisfasiable(pureLiteralElim._2, log)) {
                   //Solution found!!!
                   doSolutionFound(unitPropagationResult._2, context)
-                }else{
+                } else {
                   //apply dfs
                   var dfsData = new DFSData(pureLiteralElim._2, List[Int](), depth, pureLiteralElim._1)
                   var resData = DFSAlgorithm.applyAlgorithm(dfsData)
-                  if (resData._1.size >= formula.n){
+                  if (resData._1.size >= formula.n) {
                     log.info(
                       s"""
                          |##################    Mapper Stats   ###################
                          |fixed: ${resData._1.size}
                           |Sols found : ${resData._2}|Pruned: ${resData._3}
                         """.stripMargin)
-                    if (pureLiteralElim._1.isSatisfasiable(resData._1, log)){
+                    if (pureLiteralElim._1.isSatisfasiable(resData._1, log)) {
                       //SolutionFound!!
                       doSolutionFound(resData._1, context)
-                    }else{
+                    } else {
                       log.info(s"Solution ${resData._1.toString()} not satisfasiable!")
                     }
-                  }else{
+                  } else {
                     //apply schoning
-                    var schoningData = new SchoningData(resData._1,pureLiteralElim._1)
+                    var schoningData = new SchoningData(resData._1, pureLiteralElim._1)
                     var schResult = SchoningAlgorithm.applyAlgorithm(schoningData)
-                    if (schResult !=null){
+                    if (schResult != null) {
                       doSolutionFound(schResult, context)
-                    }else{
+                    } else {
                       //output the partial solution
                       context.getCounter(EnumMRCounters.SUBPROBLEMS).increment(1);
                       //still a partial solution
@@ -141,7 +138,7 @@ with HBaseHelper {
     }
   }
 
-  private def doSolutionFound(literalDef : List[Int], context: Context) = {
+  private def doSolutionFound(literalDef: List[Int], context: Context) = {
     log.info(s"Solution found with UP = ${literalDef.toString()}!!!")
     saveSolution(literalDef);
     context.getCounter(EnumMRCounters.SOLUTIONS).increment(1);
