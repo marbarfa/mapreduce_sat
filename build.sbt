@@ -1,7 +1,7 @@
 
 name := "mapreduce-3sat"
 
-version := "1.0"
+version := "2.0"
 
 def scalaCompilerVersion = "2.11.2"
 def hadoopVersion = "2.4.0"

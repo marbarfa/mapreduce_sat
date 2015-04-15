@@ -1,15 +1,11 @@
 package domain
 
-import java.io.BufferedReader
-
-import domain.Clause
-import utils.SatLoggingUtils
-import utils.SatReader._
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{Path, FileSystem, FSDataInputStream}
+import org.apache.hadoop.fs.FSDataInputStream
 import org.apache.log4j.Logger
+import utils.SatLoggingUtils
+
 import scala.collection.immutable.HashMap
-import scala.io.{BufferedSource, Source}
+import scala.io.Source
 
 /**
  * Created by marbarfa on 3/2/14.

@@ -5,7 +5,7 @@ import domain.Formula
 /**
  * Created by mbarreto on 3/10/15.
  */
-class SchoningData(override var fixed: List[Int],
-                   override var formula: Formula) extends AlgorithmData(fixed, formula) {
+class SchoningData(override val fixed: List[Int],
+                   override val formula: Formula) extends AlgorithmData(fixed, formula) {
 
 }
