@@ -1,4 +1,4 @@
-package main.scala.utils
+package utils
 
 /**
  * Created by marbarfa on 3/9/14.

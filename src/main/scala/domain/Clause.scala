@@ -1,4 +1,4 @@
-package main.scala.domain
+package domain
 
 /**
  * Created by marbarfa on 3/2/14.

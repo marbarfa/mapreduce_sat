@@ -1,4 +1,4 @@
-package main.scala.common
+package common
 
 /**
  * Created by marbarfa on 2/27/14.
@@ -15,6 +15,8 @@ object SatMapReduceConstants {
   val sat_not_solution_path: String = "no_solution_"
   val sat_exec_evolution = "sat_execution_"
   val variable_literals_amount = 2
+
+  val HBASE_FORMULA_DEFAULT = "DEFAULT_KEY"
 
   object config {
     val iteration = "iteration"

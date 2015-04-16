@@ -1,6 +1,6 @@
-package main.scala.utils
+package utils
 
-import main.scala.domain.Formula
+import domain.Formula
 
 
 /**

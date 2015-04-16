@@ -1,24 +1,23 @@
+
 name := "mapreduce-3sat"
 
-version := "1.0"
+version := "2.0"
 
 def scalaCompilerVersion = "2.11.2"
 def hadoopVersion = "2.4.0"
 def hbaseVersion = "0.98.6.1-hadoop2"
 
 scalaVersion := scalaCompilerVersion
-
+compileOrder := CompileOrder.Mixed
 
 //autoScalaLibrary := false
 exportJars := true
-
+//SCALA
 libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaCompilerVersion
-
 libraryDependencies += "org.scala-lang" % "scala-library" % scalaCompilerVersion
-
 libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaCompilerVersion
 
-// Hadoop Dependencies
+//HADOOP
 libraryDependencies ++= Seq(
   "org.apache.hadoop" % "hadoop-common" % hadoopVersion % Compile,
   "org.apache.hadoop" % "hadoop-hdfs" % hadoopVersion % Compile,
@@ -30,7 +29,7 @@ libraryDependencies ++= Seq(
   "org.apache.hadoop" % "hadoop-yarn-common" % hadoopVersion % Compile
 )
 
-//HBase dependencies
+//HBASE
 libraryDependencies ++= Seq(
   "org.apache.hbase" % "hbase-client" % hbaseVersion % Compile,
   "org.apache.hbase" % "hbase-it" % hbaseVersion % Compile,

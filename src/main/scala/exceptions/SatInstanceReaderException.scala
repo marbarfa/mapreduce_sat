@@ -1,4 +1,4 @@
-package main.scala.exceptions
+package exceptions
 
 /**
  * Created by marbarfa on 3/3/14.

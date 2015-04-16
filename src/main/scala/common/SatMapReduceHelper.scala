@@ -1,8 +1,8 @@
-package main.scala.common
+package common
 
 import java.io.{OutputStreamWriter, BufferedWriter, BufferedReader, InputStreamReader}
-import main.scala.domain.Formula
-import main.scala.utils.{ISatCallback, SatLoggingUtils, ConvertionHelper}
+import domain.Formula
+import utils.{ISatCallback, SatLoggingUtils, ConvertionHelper}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
@@ -124,7 +124,7 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
     }
 
     var br = new BufferedWriter(new OutputStreamWriter(fs.create(new Path(savePath))));
-    br.write(saveStr);
+    br.write(saveStr)
     br.flush()
     br.close()
   }
