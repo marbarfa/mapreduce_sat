@@ -17,6 +17,8 @@ object DFSAlgorithm extends AbstractAlgorithm[(List[Int], Int, Int)] with SatLog
    * Returns (solutions_found, prunned)
    */
   override def applyAlgorithm(algorithmData: AlgorithmData): (List[Int], Int, Int) = {
+    log.info(s"## DFS: dat=${algorithmData.fixed.toString()}, ${if (algorithmData.formula !=null)
+      algorithmData.formula.toString else "null formula"}")
     var dfsData : DFSData = algorithmData.asInstanceOf[DFSData];
 
     if (dfsData.depth == 0) {

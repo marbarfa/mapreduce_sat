@@ -146,20 +146,26 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
     //cleanup DB.
     if (withHbase) {
       log.info("Cleaning up database...")
+
       var scann = table.getScanner("invalid_literals".getBytes, "a".getBytes)
-      for (result: Result <- scann.asScala) {
-        var delete = new Delete(result.getRow);
-        table.delete(delete);
-      }
+      cleanTableFamily(scann)
+
       scann = table.getScanner("path".getBytes, "a".getBytes);
-      for (result: Result <- scann.asScala) {
-        var delete = new Delete(result.getRow);
-        table.delete(delete);
-      }
+      cleanTableFamily(scann)
+
+      scann = table.getScanner("formulas".getBytes, "a".getBytes);
+      cleanTableFamily(scann)
+
       log.info("Finish cleaning up database...")
 
     }
+  }
 
+  private def cleanTableFamily(scann: ResultScanner){
+    for (result: Result <- scann.asScala) {
+      var delete = new Delete(result.getRow);
+      table.delete(delete);
+    }
   }
 
   private def createInitJob(): SatJob = {
@@ -168,7 +174,9 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
 
     var formula = SatReader.read3SatInstance(instance_path);
     //the first time, upload the default formula to HBASE
-    saveToHBaseFormula(SatMapReduceConstants.HBASE_FORMULA_DEFAULT, formula)
+    saveToHBaseFormula(
+      SatMapReduceConstants.HBASE_FORMULA_DEFAULT + "-" + instance_path
+      .split("/").last, formula)
 
     numberOfLiterals = formula.n;
 

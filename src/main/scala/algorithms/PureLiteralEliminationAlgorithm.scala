@@ -10,7 +10,8 @@ import utils.ISatCallback
 object PureLiteralEliminationAlgorithm extends AbstractAlgorithm[(Formula, List[Int])] {
 
   /**
-   * Applies the algorithm given the imputs and calls @callback when a solution
+   * Applies the pure literal elimination algorithm to the formula.
+   * Given the imputs and calls @callback when a solution
    * is found.
    * Returns (solutions_found, prunned)
    */

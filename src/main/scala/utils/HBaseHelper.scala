@@ -1,5 +1,6 @@
 package utils
 
+import java.nio.charset.Charset
 import java.security.MessageDigest
 
 import common.SatMapReduceConstants
@@ -16,7 +17,7 @@ trait HBaseHelper extends SatLoggingUtils {
   var table: HTable = _
 
   private object HBaseHelper {
-    var staticFormula : Formula = _
+    var staticFormula: Formula = _
   }
 
   def initHTable() {
@@ -156,31 +157,35 @@ trait HBaseHelper extends SatLoggingUtils {
    * @return a formula associated with te assignment.
    *
    */
-   def retrieveFormula(assignment: String): Formula = {
+  def retrieveFormula(assignment: String, instance_path: String): Formula = {
     var scanner = table.getScanner("formulas".getBytes, md5(assignment).getBytes);
     var formula = new Formula();
 
     try {
       val it = scanner.iterator()
       if (it == null || !it.hasNext) {
-        log.info(s"No formula found in HBASE for $assignment")
+        log.info(s"No formula found in HBASE for ${assignment}, md5=${md5(assignment)}")
         //retrieve the default formula...
         HBaseHelper.synchronized {
-          if (HBaseHelper.staticFormula == null){
-              scanner = table.getScanner("formulas".getBytes, md5(SatMapReduceConstants.HBASE_FORMULA_DEFAULT).getBytes);
-              val it = scanner.iterator()
-              if (!it.hasNext) {
-                log.error(s"No formula found in HBASE for default value!!!")
-                formula = null
-              } else {
-                var cnfFormula = new String(it.next().value())
-                HBaseHelper.staticFormula = new Formula()
-                HBaseHelper.staticFormula.fromCNF(cnfFormula)
-              }
+          if (HBaseHelper.staticFormula == null) {
+            var defvalue = SatMapReduceConstants.HBASE_FORMULA_DEFAULT + "-" + instance_path
+              .split("/").last
+            var md5default = md5(defvalue)
+            log.info(s"####### Scanning for default $defvalue formula $md5default")
+            scanner = table.getScanner("formulas".getBytes, md5default.getBytes);
+            val it = scanner.iterator()
+            if (!it.hasNext) {
+              log.error(s"No formula found in HBASE for default value!!!")
+              formula = null
+            } else {
+              var cnfFormula = new String(it.next().value())
+              HBaseHelper.staticFormula = new Formula()
+              HBaseHelper.staticFormula.fromCNF(cnfFormula)
             }
           }
-          formula = HBaseHelper.staticFormula;
-      }else {
+        }
+        formula = HBaseHelper.staticFormula;
+      } else {
         var cnfFormula = new String(it.next().value())
         formula.fromCNF(cnfFormula)
       }
@@ -190,9 +195,16 @@ trait HBaseHelper extends SatLoggingUtils {
     return formula
   }
 
-  protected def md5(s: String): String = MessageDigest.getInstance("MD5").digest(s.getBytes).toString
+  def md5(text: String): String = java.security.MessageDigest.getInstance("MD5")
+    .digest(text.getBytes())
+    .map(0xFF & _).map {
+    "%02x".format(_)
+  }.foldLeft("") {
+    _ + _
+  }
 
   def saveToHBaseFormula(assignment: String, formula: Formula) = {
+    log.info(s"Saving formula for $assignment , md5=${md5(assignment)}")
     var md5Key = md5(assignment)
     var put = new Put(md5Key.getBytes)
     put.add("formulas".getBytes, md5Key.getBytes, formula.toCNF.getBytes);

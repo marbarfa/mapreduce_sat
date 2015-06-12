@@ -62,7 +62,7 @@ with SatLoggingUtils with HBaseHelper {
       log.debug(s"[Iteration $iteration|fixed: ${fixed.size} Mapper value: ${value.toString}, fixed: ${fixed.toString()}")
       if (fixed.size > 0) {
         //Apply DFS algorithm
-        formula = retrieveFormula(SatMapReduceHelper.createSatString(fixed))
+        formula = retrieveFormula(SatMapReduceHelper.createSatString(fixed), satProblem)
         var dfsData = new DFSData(fixed, List[Int](), depth, formula)
         var resData = DFSAlgorithm.applyAlgorithm(dfsData)
         context.write(key, new Text(SatMapReduceHelper.createSatString(resData._1)))

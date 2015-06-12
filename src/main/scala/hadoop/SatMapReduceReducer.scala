@@ -34,6 +34,8 @@ with HBaseHelper {
     iteration = context.getConfiguration.getInt("iteration", 1);
     startTime = context.getConfiguration.getLong("start_miliseconds", 0);
     fixedLiteralsNumber = context.getConfiguration.getInt("fixed_literals", 0);
+
+    initHTable()
     solFound = retrieveSolution(satProblem)
   }
 
@@ -64,7 +66,7 @@ with HBaseHelper {
     if (!solFound) {
       values.asScala.foreach(v => {
         val literalDefinition = SatMapReduceHelper.parseInstanceDef(v.toString.trim)
-        formula = retrieveFormula(v.toString.trim)
+        formula = retrieveFormula(v.toString.trim, satProblem)
 
         if (formula.n <= literalDefinition.size) {
           //All literals set
@@ -90,6 +92,12 @@ with HBaseHelper {
               //apply pure literal elimination
               data = new AlgorithmData(unitPropagationResult._2, unitPropagationResult._1)
               var pureLiteralElim = PureLiteralEliminationAlgorithm.applyAlgorithm(data)
+
+              if (pureLiteralElim == null){
+                // the assignment makes the formula false!
+                return;
+              }
+
               if (pureLiteralElim._2.size >= formula.n) {
                 if (pureLiteralElim._1.isSatisfasiable(pureLiteralElim._2, log)) {
                   //Solution found!!!
@@ -140,7 +148,8 @@ with HBaseHelper {
 
   private def doSolutionFound(literalDef: List[Int], context: Context) = {
     log.info(s"Solution found with UP = ${literalDef.toString()}!!!")
-    saveSolution(literalDef);
+    saveToHBaseSolFound(SatMapReduceHelper.createSatString(literalDef), satProblem, startTime)
+//    saveSolution(literalDef);
     context.getCounter(EnumMRCounters.SOLUTIONS).increment(1);
   }
 
