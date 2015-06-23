@@ -10,84 +10,84 @@ import org.apache.hadoop.io.{Text, LongWritable}
  * Trait that has a DFS implementation used in the mappers
  * Created by mbarreto on 3/3/15.
  */
-object DFSAlgorithm extends AbstractAlgorithm[(List[Int], Int, Int)] with SatLoggingUtils {
+object DFSAlgorithm extends AbstractAlgorithm[Unit] with SatLoggingUtils {
+
   /**
    * Applies the algorithm given the imputs and calls @callback when a solution
    * is found.
-   * Returns (solutions_found, prunned)
+   * Returns (fixed_literals, solutions_found, prunned)
    */
-  override def applyAlgorithm(algorithmData: AlgorithmData): (List[Int], Int, Int) = {
-    log.info(s"## DFS: dat=${algorithmData.fixed.toString()}, ${if (algorithmData.formula !=null)
-      algorithmData.formula.toString else "null formula"}")
-    var dfsData : DFSData = algorithmData.asInstanceOf[DFSData];
+  override def applyAlgorithm(algorithmData: AlgorithmData) : Unit = {
+    val dfsData : DFSData = algorithmData.asInstanceOf[DFSData];
 
     if (dfsData.depth == 0) {
-      return (dfsData.fixed ++ dfsData.selected, 1, 0)
+      val selected = algorithmData.fixed ++ dfsData.selected
+      log.info(s"[DFSALgorithm] Selected literals: ${selected.toString()}")
+      dfsData.possibleSolutions = dfsData.possibleSolutions ++ List(selected)
     } else {
       //Still not searched deep enough
       var subsolsFound = 0
       var pruned = 0;
-      var newFixed = List[Int]()
 
-      val fixedSubproblem = dfsData.fixed ++ dfsData.selected
       //select one literal to fix.
-      val l = selectLiteral(dfsData.formula, fixedSubproblem)
+      val l = selectLiteral(dfsData.formula, dfsData.fixed ++ dfsData.selected)
       if (l != 0) {
         //recursive part..
-        val subproblem = fixedSubproblem ++ Set(l)
-        val subproblemPositive = fixedSubproblem ++ Set(-l)
 
-        val evaluateAssignment = (assignment : List[Int]) => {
-          if (!evaluateSubproblem(dfsData.formula, assignment)) {
+        //FUNCTION TO EVALUATE ASSIGNMENT in DFS ALGORITHM.
+        val evaluateAssignment = (lit : Int) => {
+          var possibleSolution = dfsData.fixed ++ dfsData.selected ++ List(lit);
+          if (!evaluateSubproblem(dfsData.formula, possibleSolution)) {
             //prune => do not search in this branch.
             pruned = pruned + 1
           } else {
-            dfsData.selected = dfsData.selected ++ Set(l)
-            dfsData.depth = dfsData.depth -1
-            val ij = applyAlgorithm(dfsData)
-            newFixed = newFixed ++ ij._1
-            subsolsFound = subsolsFound + ij._2
-            pruned = pruned + ij._3
+            val dfsDataRec = new DFSData(dfsData.fixed,
+              dfsData.selected ++ List(lit),
+              dfsData.depth-1,
+              dfsData.possibleSolutions,
+              dfsData.formula);
+
+            applyAlgorithm(dfsDataRec)
+
+            dfsData.possibleSolutions = dfsDataRec.possibleSolutions
           }
         }
 
-        evaluateAssignment(subproblem)
-        evaluateAssignment(subproblemPositive)
+        evaluateAssignment(l)
+        evaluateAssignment(-l)
 
       }else{
+        var possibleSol = algorithmData.fixed ++ dfsData.selected
         //couldn't retrieve a literal => all must be set
-        var fixedLits = dfsData.fixed ++ dfsData.selected
-        if (fixedLits.size == dfsData.formula.n){
+        if (possibleSol.size >= dfsData.formula.n){
           //all literals set!, check if its a solution:
-          if (dfsData.formula.isSatisfasiable(fixedLits, log)) {
+          if (dfsData.formula.isSatisfasiable(possibleSol)) {
             //solution found ==> call callback!
-            newFixed = fixedLits
-            subsolsFound = 1
-            pruned = 0
-            // callback.apply(satSelectedLiterals)
-            // context.write(new LongWritable(Thread.currentThread().getId), new Text(satSelectedLiterals));
-            // saveToHBaseSolFound(satSelectedLiterals, satProblem, startTime)
+            dfsData.possibleSolutions = dfsData.possibleSolutions ++ List(possibleSol)
           }
         }
       }
-      return (newFixed, subsolsFound, pruned);
     }
   }
 
   private def evaluateSubproblem(formula: Formula, subproblem: List[Int]): Boolean = {
-      return formula.isSatisfasiable(subproblem, log)
+      return formula.isSatisfasiable(subproblem)
   }
 
   private def selectLiteral(formula: Formula, vars: List[Int]): Int = {
     //iterate the literals by order of appearence in clauses.
-    formula
-      .getLiteralsInOrder()
-      .slice(vars.size - 1, formula.n)
-      .foreach(x => {
+    for(x <- 1 to formula.n){
       if (!vars.contains(x) && !vars.contains(-x)) {
         return x;
       }
-    })
+    }
+//    formula
+//      .getLiteralsInOrder()
+//      .foreach(x => {
+//      if (!vars.contains(x) && !vars.contains(-x)) {
+//        return x;
+//      }
+//    })
     return 0;
   }
 

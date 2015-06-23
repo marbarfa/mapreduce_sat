@@ -132,9 +132,8 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
   //eg: for Map(1 -> true, 2->false, 3->false) ===> definition = "1 -2 -3"
   def createSatString(literals: List[Int]): String =
     literals
-      .sorted
-      .foldLeft("")((varStr, b) =>
-      varStr + " " + b)
+      .foldLeft(" ")((varStr, b) =>
+      varStr + " " + b.toString).trim
 
   /**
    * Converts a int value to a binary string of @digits digits.
@@ -142,8 +141,13 @@ object SatMapReduceHelper extends ConvertionHelper with SatLoggingUtils {
    * @param digits
    * @return
    */
-  def toBinary(i: Int, digits: Int = 8) =
-    String.format("%" + digits + "s", i.toBinaryString).replace(' ', '0')
-
+  def toBinary(i: Int, digits: Int = 8) : String = {
+    var binaryInt = i.toBinaryString;
+    if (binaryInt.length >= digits){
+      return binaryInt.substring(binaryInt.length-digits)
+    }else{
+      return String.format("%" + digits + "s", binaryInt).replace(' ', '0').trim
+    }
+  }
 
 }

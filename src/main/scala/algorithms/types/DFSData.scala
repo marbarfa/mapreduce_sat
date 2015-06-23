@@ -8,5 +8,6 @@ import domain.Formula
 class DFSData(override val fixed: List[Int],
               var selected: List[Int],
               var depth: Int,
+              var possibleSolutions : List[List[Int]],
               override val formula: Formula) extends AlgorithmData(fixed, formula) {
 }

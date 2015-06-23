@@ -42,3 +42,6 @@ libraryDependencies ++= Seq(
   "org.htrace" % "htrace-core" % "3.0" % Compile,
   "org.apache.zookeeper" % "zookeeper" % "3.4.5" % Compile
 )
+libraryDependencies ++= Seq(
+  "org.scalatest" % "scalatest_2.11" % "latest.integration" % "test"
+)

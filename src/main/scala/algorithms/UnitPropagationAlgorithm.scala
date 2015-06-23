@@ -2,7 +2,7 @@ package algorithms
 
 import algorithms.types.AlgorithmData
 import domain.{Clause, Formula}
-import utils.ISatCallback
+import utils.{SatLoggingUtils, ISatCallback}
 
 /**
  * Implementation of the UnitPropagation algorithm.
@@ -17,51 +17,65 @@ import utils.ISatCallback
  *
  * Created by mbarreto on 3/8/15.
  */
-object UnitPropagationAlgorithm extends AbstractAlgorithm[(Formula, List[Int])] {
+object UnitPropagationAlgorithm extends AbstractAlgorithm[(Formula, List[Int])] with SatLoggingUtils{
   /**
    * Applies the algorithm given the imputs and calls @callback when a solution
    * is found.
    * Returns (new formula, fixed literals) (if any)
    */
-  override def applyAlgorithm(upData : AlgorithmData) : (Formula, List[Int]) = {
-    val formula : Formula = new Formula()
-    var newFixed : List[Int] = List[Int]()
+  override def applyAlgorithm(upData: AlgorithmData): (Formula, List[Int]) = {
+    val formula: Formula = new Formula(upData.formula.n, upData.formula.m)
+    var newFixed: List[Int] = upData.fixed
 
     for (cl <- upData.formula.clauses) {
-      var clause : Clause = new Clause()
+      var clause: Clause = new Clause()
       var addClause = true
-      for(clLit <- cl.literals if addClause){
-        if (upData.fixed.contains(clLit)){
+
+      for (clLit <- cl.literals if addClause) {
+        if (newFixed.contains(clLit)) {
           //do not add clause ==> its already true
           addClause = false
-        }else if (upData.fixed.contains(-clLit)){
+        } else if (newFixed.contains(-clLit)) {
           //there is the reverse literal value ==> remove the literal from clause
-        }else {
+        } else {
           //add the current literal
-           clause.literals = clause.literals ++ List(clLit)
+          clause.literals ++= List(clLit)
         }
       }
+
       if (addClause) {
         formula.clauses = formula.clauses ++ List(clause)
         for (l <- clause.literals)
           formula.addClauseOfVar(l, clause)
       }
-      var clausesToRemove = List[Clause]();
+    }
 
-      for(cl <- formula.clauses){
-        if (cl.literals.size == 1 && upData.fixed.contains(-cl.literals(0))){
-          //only one literal remaining in the clause and the literal is fixed negated ==> Formula false!!
-          return null
-        }else if (cl.literals.size == 1) {
-          //only one literal remaining in the clause and the literal is not fixed
-          clausesToRemove = clausesToRemove ++ List(cl)
-          //if the literal
-          if (!upData.fixed.contains(cl.literals.apply(0)))
-            newFixed = newFixed ++ List(cl.literals.apply(0))
+    var clausesToRemove = List[Clause]()
+    var fixedLitsLog = List[Int]()
+
+    for (cl2 <- formula.clauses) {
+      if (cl2.literals.size == 1 && newFixed.contains(-cl2.literals.head)) {
+        //only one literal remaining in the clause and the literal is fixed negated ==> Formula false!!
+        return (null, newFixed)
+      } else if (cl2.literals.size == 1) {
+        //only one literal remaining in the clause and the literal is not fixed
+        clausesToRemove = clausesToRemove ++ List(cl2)
+        //if the literal
+        if (!newFixed.contains(cl2.literals.head)) {
+          newFixed ++= List(cl2.literals.head)
+          fixedLitsLog ++= List(cl2.literals.head)
         }
       }
-      formula.clauses = formula.clauses.filter(p => clausesToRemove.contains(p))
     }
+
+    log.info(
+      s"""
+         |%%% Unit propagation: Clauses to remove: ${for( c <- clausesToRemove) {c.literals.toString() + " | " }}
+          |fixed: ${upData.fixed}
+          |new: ${fixedLitsLog}
+           """.stripMargin)
+
+    formula.clauses = formula.clauses.filter(p => clausesToRemove.contains(p))
 
     return (formula, newFixed)
   }

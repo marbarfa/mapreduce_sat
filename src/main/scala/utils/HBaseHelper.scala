@@ -146,7 +146,7 @@ trait HBaseHelper extends SatLoggingUtils {
     var put = new Put(s"solution_${problemSplit}_${((System.currentTimeMillis() - time) / 1000)}s".getBytes)
     put.add("solution".getBytes, problemSplit.getBytes, sol.getBytes);
     table.put(put);
-    log.trace(s"Key [$sol] with value [$sol] saved...")
+    log.info(s"[SOLUTION]Key [$sol] with value [$sol] saved...")
   }
 
   /**
@@ -164,14 +164,12 @@ trait HBaseHelper extends SatLoggingUtils {
     try {
       val it = scanner.iterator()
       if (it == null || !it.hasNext) {
-        log.info(s"No formula found in HBASE for ${assignment}, md5=${md5(assignment)}")
         //retrieve the default formula...
         HBaseHelper.synchronized {
           if (HBaseHelper.staticFormula == null) {
             var defvalue = SatMapReduceConstants.HBASE_FORMULA_DEFAULT + "-" + instance_path
               .split("/").last
             var md5default = md5(defvalue)
-            log.info(s"####### Scanning for default $defvalue formula $md5default")
             scanner = table.getScanner("formulas".getBytes, md5default.getBytes);
             val it = scanner.iterator()
             if (!it.hasNext) {

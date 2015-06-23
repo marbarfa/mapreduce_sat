@@ -10,30 +10,30 @@ import scala.io.Source
 /**
  * Created by marbarfa on 3/2/14.
  */
-class Formula extends SatLoggingUtils {
+class Formula(var n:Int, var m:Int) extends SatLoggingUtils {
 
   var clauses: List[Clause] = List[Clause]()
   var clausesOfVars: Map[Int, List[Clause]] = new HashMap[Int, List[Clause]]()
 
-  var n: Int = _
-  var m: Int = _
-
   var literalsInOrder: List[Int] = null;
+
+  //Empty constructor
+  def this() = this(0, 0)
 
 
   /**
    * @return true if the formula is satisfiable
    */
-  def isSatisfasiable(literals: List[Int], log: Logger): Boolean = {
+  def isSatisfasiable(literals: List[Int]): Boolean = {
     var res = true
-    var affectedClauses = getClauses(literals, log)
+    var affectedClauses = getClauses(literals)
     for (c <- affectedClauses if res) {
       res = res && c.isSatisfasiable(literals)
     }
     return res
   }
 
-  def getClauses(literals: List[Int], log: Logger): List[Clause] = {
+  def getClauses(literals: List[Int]): List[Clause] = {
     var clauses = literals.foldLeft(List[Clause]()) { (list, key) => list ::: clausesOfVars.getOrElse(math.abs(key), List[Clause]()) }
     return clauses;
   }
@@ -48,23 +48,6 @@ class Formula extends SatLoggingUtils {
   def addClauseOfVar(literal: Int, clause: Clause) {
     var literalAbs = math.abs(literal);
     clausesOfVars += (literalAbs -> (clause :: clausesOfVars.getOrElse(literalAbs, List[Clause]())))
-  }
-
-  def getFalseClauses(literals: List[Int]): List[Clause] = {
-    var falseClauses = List[Clause]();
-
-    literals.foreach(literal => {
-      clausesOfVars
-        .getOrElse(math.abs(literal), List[Clause]())
-        .foreach(clause => {
-        if (!falseClauses.contains(clause) &&
-          !clause.isSatisfasiable(literals)) {
-          falseClauses ::= clause
-        }
-      })
-    })
-
-    return falseClauses;
   }
 
   /**

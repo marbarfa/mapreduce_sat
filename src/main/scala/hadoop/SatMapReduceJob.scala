@@ -156,6 +156,9 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
       scann = table.getScanner("formulas".getBytes, "a".getBytes);
       cleanTableFamily(scann)
 
+      scann = table.getScanner("solution".getBytes, "a".getBytes);
+      cleanTableFamily(scann)
+
       log.info("Finish cleaning up database...")
 
     }
