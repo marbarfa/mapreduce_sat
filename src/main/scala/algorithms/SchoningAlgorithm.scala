@@ -31,34 +31,27 @@ object SchoningAlgorithm extends AbstractAlgorithm[List[Int]] with SatLoggingUti
       val partialAssignment = SatMapReduceHelper.createMap(notFixedLiterals, binarySelection)
       var newAssignment = partialAssignment ++ upData.fixed
       log.info(s"""
-             %%% Schoning
-              binarySelection: ${binarySelection},
-              partial: ${partialAssignment.toString()}
-              newAssignment: ${newAssignment}""")
+             Schoning --> newAssignment: ${newAssignment}""")
       if (upData.formula.isSatisfasiable(newAssignment)) {
         //solution found!!
-        log.info(s"Solution Found in SCHONNING: ${newAssignment.toString()},old: ${upData.fixed.toString}, partial: ${partialAssignment.toString()}")
+        log.info(s"Solution Found in SCHONNING: ${newAssignment.toString()}")
         return newAssignment
       } else {
         var firstFalseClauseFound: Boolean = false
-        for (j <- 0 to (3 * upData.formula.n) if !firstFalseClauseFound) {
+        for (j <- 0 until (3 * upData.formula.n)) {
           firstFalseClauseFound = false
-          var index = 0
           for (clause <- upData.formula.clauses if !firstFalseClauseFound) {
-
             if (!clause.isSatisfasiable(newAssignment)) {
               //first false clause found! ==> flip one literal
               newAssignment = SchoningAlgorithm.flipLiteralOfClause(clause, newAssignment, selectRandomLiteral(clause))
               firstFalseClauseFound = true
             }
-            index += 1
-
           }
-        }
-        if (!firstFalseClauseFound) {
-          //the assignment is a solution!
-          log.info(s"[SCHO] Schonning solution: ${newAssignment}")
-          return newAssignment
+          if (!firstFalseClauseFound && upData.formula.isSatisfasiable(newAssignment)) {
+            //the assignment is a solution!
+            log.info(s"[SCHO] Schonning solution: ${newAssignment}")
+            return newAssignment
+          }
         }
       }
     }

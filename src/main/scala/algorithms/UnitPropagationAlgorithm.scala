@@ -27,6 +27,19 @@ object UnitPropagationAlgorithm extends AbstractAlgorithm[(Formula, List[Int])] 
     val formula: Formula = new Formula(upData.formula.n, upData.formula.m)
     var newFixed: List[Int] = upData.fixed
 
+    var unitLiteralFound = false;
+    do {
+      unitLiteralFound = false;
+
+      for(c <- upData.formula.clauses){
+        if (c.literals.size == 1){
+          unitLiteralFound = true;
+
+        }
+      }
+
+    } while(!unitLiteralFound);
+
     for (cl <- upData.formula.clauses) {
       var clause: Clause = new Clause()
       var addClause = true

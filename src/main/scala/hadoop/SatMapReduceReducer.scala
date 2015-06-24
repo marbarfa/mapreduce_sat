@@ -89,7 +89,6 @@ with HBaseHelper {
           var state = upRes._1
           formula = upRes._2
           literalDefinition = upRes._3
-          log.info(s"FORMULA AFTER UP: ${if (formula == null) "NULL" else "NOT NULL"}")
 
           if (!NOT_SOLUTION.equals(state)) {
             //APPLY PURE LITERAL ELIMINATION
@@ -107,7 +106,6 @@ with HBaseHelper {
               for (possibleSol <- dfsData.possibleSolutions) {
 
                 if (!NOT_SOLUTION.equals(state)) {
-                  log.info(s"[Reducer][DFS] literalDef = $possibleSol")
 
                   //APPLY SCHONNING ALGORITHM.
                   val (state4, literalDefinition4) = applySchoning(dfsData.formula, possibleSol, context)
@@ -139,7 +137,6 @@ with HBaseHelper {
    * @return
    */
   private def applySchoning(formula: Formula, literalDefinition: List[Int], context: Context): (String, List[Int]) = {
-    log.info(s"[REDUCER] literalDef before SCHONNING: ${literalDefinition.toString}")
     //apply schoning
     var schoningData = new SchoningData(literalDefinition, formula)
     var schResult = SchoningAlgorithm.applyAlgorithm(schoningData)
@@ -159,7 +156,6 @@ with HBaseHelper {
    * @return returns triplet of (current state, new formula created, list of fixed literals)
    */
   private def applyUnitPropagation(formula: Formula, literalDefinition: List[Int], context: Context): (String, Formula, List[Int]) = {
-    log.info(s"[REDUCER] literalDef before UP: ${literalDefinition.toString}")
     var data = new AlgorithmData(literalDefinition, formula)
     var unitPropagationResult = UnitPropagationAlgorithm.applyAlgorithm(data)
     log.info(s"Literals after UP ${unitPropagationResult._2.toString()}, " +
@@ -190,7 +186,6 @@ with HBaseHelper {
    * @return returns triplet of (current state, new formula created, list of fixed literals)
    */
   private def applyPureLiteralElimination(formula: Formula, literalDefinition: List[Int], context: Context): (String, Formula, List[Int]) = {
-    log.info(s"[REDUCER] literalDef before PLE: ${literalDefinition.toString}")
     //apply pure literal elimination
     var data = new AlgorithmData(literalDefinition, formula)
     var pureLiteralElim = PureLiteralEliminationAlgorithm.applyAlgorithm(data)

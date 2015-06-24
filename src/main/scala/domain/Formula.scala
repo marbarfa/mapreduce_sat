@@ -33,6 +33,35 @@ class Formula(var n:Int, var m:Int) extends SatLoggingUtils {
     return res
   }
 
+  def getFalseClause(literals: List[Int]): List[Int] = {
+    var res = true
+    var affectedClauses = getClauses(literals)
+    for (c <- affectedClauses if res) {
+      res = res && c.isSatisfasiable(literals)
+      if (!res)
+        return c.literals;
+    }
+    return null;
+  }
+
+  /**
+   *
+   * @param literals
+   * @return true if a clause with this literals exists in the formula
+   */
+  def containsClause(literals: List[Int]) : Boolean = {
+    for(c<- clauses){
+      var break = false
+      for(l <- c.literals if !break) {
+        if (!literals.contains(l))
+          break = true;
+      }
+      if (!break)
+        return true
+    }
+    return false
+  }
+
   def getClauses(literals: List[Int]): List[Clause] = {
     var clauses = literals.foldLeft(List[Clause]()) { (list, key) => list ::: clausesOfVars.getOrElse(math.abs(key), List[Clause]()) }
     return clauses;
@@ -100,7 +129,7 @@ class Formula(var n:Int, var m:Int) extends SatLoggingUtils {
    * CNF reader
    * @param cnfLines
    */
-  private def doReadCNF(cnfLines : Iterator[String]) {
+  def doReadCNF(cnfLines : Iterator[String]) {
     var clauseIndex: Int = 0;
     var end = false;
     for (line <- cnfLines if !end) {
