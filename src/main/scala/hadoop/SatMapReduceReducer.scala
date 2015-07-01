@@ -1,7 +1,7 @@
 package hadoop
 
 import java.lang
-import algorithms.{SchoningAlgorithm, DFSAlgorithm, PureLiteralEliminationAlgorithm, UnitPropagationAlgorithm}
+import algorithms.{UPPLEAlgorithm, SchoningAlgorithm, DFSAlgorithm}
 import algorithms.types.{SchoningData, DFSData, AlgorithmData}
 import enums.EnumMRCounters
 import common.{SatMapReduceConstants, SatMapReduceHelper}
@@ -75,7 +75,6 @@ with HBaseHelper {
         if (formula.n <= literalDefinition.size) {
           //All literals set
           if (formula.isSatisfasiable(literalDefinition)) {
-            log.info(s"[line 74] - Solution found = ${literalDefinition.toString()}!!!")
             saveSolution(literalDefinition);
             context.getCounter(EnumMRCounters.SOLUTIONS).increment(1);
           } else {
@@ -85,41 +84,39 @@ with HBaseHelper {
           //apply unit propagation
           var data = new AlgorithmData(literalDefinition, formula);
 
-          var upRes = applyUnitPropagation(formula, literalDefinition, context)
+          var upRes = applyUPPLE(formula, literalDefinition, context)
           var state = upRes._1
           formula = upRes._2
           literalDefinition = upRes._3
 
           if (!NOT_SOLUTION.equals(state)) {
-            //APPLY PURE LITERAL ELIMINATION
-            val (state2, formula2, literalDefinition2) = applyPureLiteralElimination(formula, literalDefinition, context)
-            state = state2;
-            formula = formula2;
-            literalDefinition = literalDefinition2;
+            //APPLY DFS ALGORITHM.
+            var dfsData = new DFSData(literalDefinition, List[Int](), depth, List[List[Int]](), formula)
+            DFSAlgorithm.applyAlgorithm(dfsData)
 
-            if (!NOT_SOLUTION.equals(state)) {
-              //APPLY DFS ALGORITHM.
-              var dfsData = new DFSData(literalDefinition, List[Int](), depth, List[List[Int]](), formula)
-              DFSAlgorithm.applyAlgorithm(dfsData)
+            //For each possible Solution
+            for (possibleSol <- dfsData.possibleSolutions) {
 
-              //For each possible Solution
-              for (possibleSol <- dfsData.possibleSolutions) {
+              //All literals set in DFS
+              if (possibleSol.size >= formula.n) {
+                if (formula.isSatisfasiable(possibleSol)) {
+                  doSolutionFound(possibleSol, formula, context, s"Solution ${possibleSol.toString} with DFS!")
+                  return;
+                }
+              } else {
+                //Apply Schoning Algorithm
+                val resSchoning = applySchoning(dfsData.formula, possibleSol, context)
 
-                if (!NOT_SOLUTION.equals(state)) {
+                if (!SOLUTION_FOUND.equals(resSchoning._1)) {
+                  context.getCounter(EnumMRCounters.SUBPROBLEMS).increment(1);
+                  //still a partial solution
+                  var ps = SatMapReduceHelper.createSatString(possibleSol)
+                  context.write(NullWritable.get(), new Text(ps.getBytes))
 
-                  //APPLY SCHONNING ALGORITHM.
-                  val (state4, literalDefinition4) = applySchoning(dfsData.formula, possibleSol, context)
-
-                  if (!SOLUTION_FOUND.equals(state)) {
-                    context.getCounter(EnumMRCounters.SUBPROBLEMS).increment(1);
-                    //still a partial solution
-                    var ps = SatMapReduceHelper.createSatString(literalDefinition)
-                    log.info(s"[MAPREDUCE SOL]Partial solution: ${ps} of $literalDefinition")
-                    context.write(NullWritable.get(), new Text(ps.getBytes))
-
-                    //Save new formula!
-                    saveToHBaseFormula(ps, formula)
-                  }
+                  //Save new formula!
+                  saveToHBaseFormula(ps, formula)
+                } else {
+                  doSolutionFound(resSchoning._2, formula, context, s"Solution ${resSchoning._2.toString} with SCHONING")
                 }
               }
             }
@@ -140,12 +137,11 @@ with HBaseHelper {
     //apply schoning
     var schoningData = new SchoningData(literalDefinition, formula)
     var schResult = SchoningAlgorithm.applyAlgorithm(schoningData)
+    var state = NOT_ALL_FIXED
     if (schResult != null && schResult.size >= formula.n) {
-      doSolutionFound(schResult, formula, context, s"Solution ${schResult.toString} with SCHONING")
-      return (SOLUTION_FOUND, schResult)
-    } else {
-      return (NOT_ALL_FIXED, schResult)
+      state = SOLUTION_FOUND
     }
+    return (NOT_ALL_FIXED, schResult)
   }
 
   /**
@@ -155,11 +151,9 @@ with HBaseHelper {
    * @param context current MR context
    * @return returns triplet of (current state, new formula created, list of fixed literals)
    */
-  private def applyUnitPropagation(formula: Formula, literalDefinition: List[Int], context: Context): (String, Formula, List[Int]) = {
+  private def applyUPPLE(formula: Formula, literalDefinition: List[Int], context: Context): (String, Formula, List[Int]) = {
     var data = new AlgorithmData(literalDefinition, formula)
-    var unitPropagationResult = UnitPropagationAlgorithm.applyAlgorithm(data)
-    log.info(s"Literals after UP ${unitPropagationResult._2.toString()}, " +
-      s"formula: ${if (unitPropagationResult._1 == null) " NULL" else " NOT NULL"}")
+    var unitPropagationResult = UPPLEAlgorithm.applyAlgorithm(data)
 
     var status: String = ""
 
@@ -176,34 +170,6 @@ with HBaseHelper {
       }
     }
     return (status, unitPropagationResult._1, unitPropagationResult._2)
-  }
-
-  /**
-   * Applies the pure literal elimination algorithm to the formula.
-   * @param formula the formula to receive
-   * @param literalDefinition the current fixed set of literals.
-   * @param context current MR context
-   * @return returns triplet of (current state, new formula created, list of fixed literals)
-   */
-  private def applyPureLiteralElimination(formula: Formula, literalDefinition: List[Int], context: Context): (String, Formula, List[Int]) = {
-    //apply pure literal elimination
-    var data = new AlgorithmData(literalDefinition, formula)
-    var pureLiteralElim = PureLiteralEliminationAlgorithm.applyAlgorithm(data)
-
-    var status = NOT_ALL_FIXED
-    if (pureLiteralElim._1 == null) {
-      // the assignment makes the formula false!
-      status = NOT_SOLUTION
-    } else if (pureLiteralElim._2.size >= formula.n) {
-      if (pureLiteralElim._1.isSatisfasiable(pureLiteralElim._2)) {
-        //Solution found!!!
-        doSolutionFound(pureLiteralElim._2, pureLiteralElim._1, context, s"Solution ${pureLiteralElim._2.toString} with PLE")
-        status = SOLUTION_FOUND
-      } else {
-        status = NOT_SOLUTION
-      }
-    }
-    return (status, pureLiteralElim._1, pureLiteralElim._2)
   }
 
 

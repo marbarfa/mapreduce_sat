@@ -179,6 +179,7 @@ trait HBaseHelper extends SatLoggingUtils {
               var cnfFormula = new String(it.next().value())
               HBaseHelper.staticFormula = new Formula()
               HBaseHelper.staticFormula.fromCNF(cnfFormula)
+              log.info(s"CUSTOM FORMULA FOUND!!! ${cnfFormula.toString}")
             }
           }
         }

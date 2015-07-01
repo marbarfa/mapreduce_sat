@@ -87,4 +87,13 @@ class UPPLEAlgorithmTest extends FlatSpec with Matchers{
     newFixed2 should be (List(-5, -9, -1, 10, -4, 7, -6))
     formula3.clauses.size should be (0)
   }
+
+  it should "be true having 50 literals to set" in {
+    var formula = new Formula()
+    formula.doReadCNF(Source.fromURL(getClass.getResource("/3sat_50_219")).getLines());
+
+    formula.isSatisfasiable(List(24, -42, 5, 4, 19, 23, 3, 33,
+    14, 25, -39, -13, -21, -29, 31, -18, -9, -6, -37, 30, 43, 27, -15, 36, -16, -2, -41, 26, 28, 32, 47, 46, -34, -12,
+    -35, 1, 10, 8, -40, -11, 48, 44, -17, -50, -7, 49, -22, 45, 38, 20)) should be (true)
+  }
 }

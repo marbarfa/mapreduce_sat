@@ -54,6 +54,16 @@ class FormulaTest extends FlatSpec with Matchers {
 
     formula.isSatisfasiable(List(-1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14,-15, -16, -17, -18, -19, -20, -21, -22,
       -23, -24, -25, -26, -27, -28, -29, -30)) should be (false)
+
+    formula.isSatisfasiable(List(-27,29,-1,26,4,-21,2,3,-5,6,7, -8, -9, -10, -11,
+    12, 13, 14, -15, 16, -17, 20, 25, 23, -22, -28, 30, 18, -19, -24)) should be (false)
+
+    formula.isSatisfasiable(List(-25, -28, 20, 23, -18, 30, 24, -19, -22, -27,
+      29, -1, 26, 4, 21, 2, -3, -5, 6, 7, 8, -9, -10, -11, 12, 13, 14, -15, -1, 17)) should be (true)
+
+    formula.isSatisfasiable(List(-18, 6, -5, 30, 17, 24, 13, -19, -22, -27, 29, -1, 26, 4, 21,
+      -9, -25, -16, 2, -28, -11, 12, -15, -3, 7 ,20, 14, -10,8, 23)) should be (true)
+
   }
 
 

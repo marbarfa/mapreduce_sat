@@ -20,7 +20,6 @@ object SchoningAlgorithm extends AbstractAlgorithm[List[Int]] with SatLoggingUti
     val randomGen = new Random()
     var fixedLiterals = List[Int]()
     var notFixedLiterals = getNotFixedLiterals(upData)
-    log.info(s"Fixed Literals: ${upData.fixed}, notfixed: ${notFixedLiterals}")
 
     for (i <- 0 to upData.formula.n) {
       //literal selection
@@ -30,11 +29,8 @@ object SchoningAlgorithm extends AbstractAlgorithm[List[Int]] with SatLoggingUti
       //generate the assignment
       val partialAssignment = SatMapReduceHelper.createMap(notFixedLiterals, binarySelection)
       var newAssignment = partialAssignment ++ upData.fixed
-      log.info(s"""
-             Schoning --> newAssignment: ${newAssignment}""")
       if (upData.formula.isSatisfasiable(newAssignment)) {
         //solution found!!
-        log.info(s"Solution Found in SCHONNING: ${newAssignment.toString()}")
         return newAssignment
       } else {
         var firstFalseClauseFound: Boolean = false
@@ -49,7 +45,6 @@ object SchoningAlgorithm extends AbstractAlgorithm[List[Int]] with SatLoggingUti
           }
           if (!firstFalseClauseFound && upData.formula.isSatisfasiable(newAssignment)) {
             //the assignment is a solution!
-            log.info(s"[SCHO] Schonning solution: ${newAssignment}")
             return newAssignment
           }
         }

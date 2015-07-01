@@ -63,34 +63,21 @@ with SatLoggingUtils with HBaseHelper {
       if (fixed.size > 0) {
         //Apply DFS algorithm
         formula = retrieveFormula(SatMapReduceHelper.createSatString(fixed), satProblem)
-        log.info(
-          s"""
-             |%%% DFS IN: fixed: ${fixed.toString()}, depth: ${depth}
-           """.stripMargin)
         var dfsData = new DFSData(fixed, List[Int](), depth, List[List[Int]](), formula)
-
-        log.info(
-          s"""
-             |%%% DFS OUT: fixed: ${dfsData.fixed.toString()},
-             |possibleSOLUTIONS: ${dfsData.possibleSolutions.foreach(f => f.toString())}
-           """.stripMargin)
-
 
         DFSAlgorithm.applyAlgorithm(dfsData)
         if (dfsData.possibleSolutions.size > 0)
-          log.info(s"[MAPPER] AFTER DFS: ${dfsData.possibleSolutions.head.toString()}")
         for (possibleSol <- dfsData.possibleSolutions) {
           if (possibleSol.size < formula.n) {
             //not all literals set ==> do Schöning algorithm
             var schoningData = new SchoningData(possibleSol, formula)
             var schResult = SchoningAlgorithm.applyAlgorithm(schoningData)
             if (schResult != null) {
-              log.info(s"SCHOINGN SOLUTION!!")
               // Solution Found
               saveToHBaseSolFound(SatMapReduceHelper.createSatString(schResult), satProblem, start)
             } else {
               var literalDef = SatMapReduceHelper.createSatString(possibleSol);
-              log.info(s"[MAPPER] Saving partial solution ${literalDef.toString}")
+
               context.write(key, new Text(literalDef))
             }
           } else if (dfsData.formula.isSatisfasiable(possibleSol)) {

@@ -22,7 +22,6 @@ object DFSAlgorithm extends AbstractAlgorithm[Unit] with SatLoggingUtils {
 
     if (dfsData.depth == 0) {
       val selected = algorithmData.fixed ++ dfsData.selected
-      log.info(s"[DFSALgorithm] Selected literals: ${selected.toString()}")
       dfsData.possibleSolutions = dfsData.possibleSolutions ++ List(selected)
     } else {
       //Still not searched deep enough
@@ -76,18 +75,18 @@ object DFSAlgorithm extends AbstractAlgorithm[Unit] with SatLoggingUtils {
 
   private def selectLiteral(formula: Formula, vars: List[Int]): Int = {
     //iterate the literals by order of appearence in clauses.
-    for(x <- 1 to formula.n){
-      if (!vars.contains(x) && !vars.contains(-x)) {
-        return x;
-      }
-    }
-//    formula
-//      .getLiteralsInOrder()
-//      .foreach(x => {
+//    for(x <- 1 to formula.n){
 //      if (!vars.contains(x) && !vars.contains(-x)) {
 //        return x;
 //      }
-//    })
+//    }
+    formula
+      .getLiteralsInOrder()
+      .foreach(x => {
+      if (!vars.contains(x) && !vars.contains(-x)) {
+        return x;
+      }
+    })
     return 0;
   }
 
