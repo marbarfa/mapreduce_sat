@@ -22,7 +22,7 @@ with HBaseHelper {
   var fixedLiteralsNumber: Int = _
   var satProblem: String = _
   var startupTime: Long = _
-  var solFound: Boolean = _
+  var solFound: (String, Long) = null
   var depth: Int = _
   type Context = Reducer[LongWritable, Text, NullWritable, Text]#Context
 
@@ -66,7 +66,7 @@ with HBaseHelper {
   }
 
   override def reduce(key: LongWritable, values: lang.Iterable[Text], context: Context) {
-    if (!solFound) {
+    if (solFound == null) {
       values.asScala.foreach(v => {
         log.info(s"[REDUCER] Received fixed literals: ${v.toString}")
         var literalDefinition: List[Int] = SatMapReduceHelper.parseInstanceDef(v.toString.trim)
@@ -114,7 +114,7 @@ with HBaseHelper {
                   context.write(NullWritable.get(), new Text(ps.getBytes))
 
                   //Save new formula!
-                  saveToHBaseFormula(ps, formula)
+                  saveToHBaseFormula(ps, formula, satProblem)
                 } else {
                   doSolutionFound(resSchoning._2, formula, context, s"Solution ${resSchoning._2.toString} with SCHONING")
                 }

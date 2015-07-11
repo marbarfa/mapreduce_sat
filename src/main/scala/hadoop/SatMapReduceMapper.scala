@@ -27,7 +27,7 @@ with SatLoggingUtils with HBaseHelper {
   var depth: Int = _
   var iteration: Int = _
   var satProblem: String = _
-  var solFound: Boolean = _
+  var solFound: (String, Long) = null
   var startTime: Long = _
   type Context = Mapper[LongWritable, Text, LongWritable, Text]#Context
 
@@ -57,7 +57,7 @@ with SatLoggingUtils with HBaseHelper {
    */
   override def map(key: LongWritable, value: Text, context: Context) {
     val start = System.currentTimeMillis();
-    if (!solFound) {
+    if (solFound == null) {
       val fixed: List[Int] = SatMapReduceHelper.parseInstanceDef(value.toString)
       log.info(s"[Iteration $iteration|fixed: ${fixed.size} Mapper value: ${value.toString}, fixed: ${fixed.toString()}")
       if (fixed.size > 0) {

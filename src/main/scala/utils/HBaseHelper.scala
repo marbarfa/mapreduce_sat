@@ -1,13 +1,13 @@
 package utils
 
-import java.nio.charset.Charset
-import java.security.MessageDigest
-
 import common.SatMapReduceConstants
 import domain.Formula
+import hadoop.SatMapReduceJob._
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.hbase.HBaseConfiguration
-import org.apache.hadoop.hbase.client.{Put, HTable}
-import sun.security.provider.MD5
+import org.apache.hadoop.hbase.client._
+import scala.collection.JavaConverters._
 
 /**
  * Created by mbarreto on 1/17/15.
@@ -53,18 +53,37 @@ trait HBaseHelper extends SatLoggingUtils {
     return invalidLiterals;
   }
 
-  def retrieveSolution(problem: String): Boolean = {
+  /**
+   * Retrieves a solution HBASE
+   * @param problem problem to use as key
+   * @return returns the first found solution (if many are found, return the one with lower timestamp).
+   */
+  def retrieveSolution(problem: String): (String, Long) = {
     val problemSplit = problem.split("/").last;
     var scanner = table.getScanner("solution".getBytes, problemSplit.getBytes);
+    var resSol : String = null
+    var resTime : Long = Long.MaxValue
     try {
       val it = scanner.iterator()
       if (it != null && it.hasNext) {
-        return true;
+        var rr = it.next();
+        // The time is saved as: "$time_in_millis milliseconds"
+        var time_in_millis = new String(rr.getRow).split(' ')(0).toLong
+        var solution = new String(rr.value);
+        log.info(s"SOLUTION $solution in time $time_in_millis milliseconds...")
+        if (time_in_millis < resTime){
+          resTime = time_in_millis
+          resSol = solution
+        }
       }
+      if (resTime == Long.MaxValue)
+        return null
+      else
+        return (resSol, resTime)
     } catch {
-      case e: Throwable => log.info(" Error retrieving error");
+      case e: Throwable => log.info("Error retrieving solution!", e);
     }
-    return false;
+    return null
   }
 
   protected def stringToIntSet(str: String): List[Int] =
@@ -141,12 +160,30 @@ trait HBaseHelper extends SatLoggingUtils {
     log.trace(s"Key [${key}] saved...")
   }
 
-  def saveToHBaseSolFound(sol: String, problem: String, time: Long) {
+  /**
+   * Save a solution to HBASE using the startTime timestamp
+   * @param sol
+   * @param problem
+   * @param startTimeStamp
+   */
+  def saveToHBaseSolFound(sol: String, problem: String, startTimeStamp: Long) {
     val problemSplit = problem.split("/").last;
-    var put = new Put(s"solution_${problemSplit}_${((System.currentTimeMillis() - time) / 1000)}s".getBytes)
+    var put = new Put(s"${((System.currentTimeMillis() - startTimeStamp))} milliseconds".getBytes)
     put.add("solution".getBytes, problemSplit.getBytes, sol.getBytes);
     table.put(put);
-    log.info(s"[SOLUTION]Key [$sol] with value [$sol] saved...")
+  }
+
+  /**
+   * Save a solution to HBase using a precalculated time.
+   * @param sol
+   * @param problem
+   * @param calculatedTime
+   */
+  def saveToHBaseSolFoundSummary(sol: String, problem: String, calculatedTime: String) {
+    val problemSplit = problem.split("/").last;
+    var put = new Put(s"$calculatedTime milliseconds".getBytes)
+    put.add("solution".getBytes, s"SUMMARY OF $problemSplit".getBytes, sol.getBytes);
+    table.put(put);
   }
 
   /**
@@ -158,7 +195,7 @@ trait HBaseHelper extends SatLoggingUtils {
    *
    */
   def retrieveFormula(assignment: String, instance_path: String): Formula = {
-    var scanner = table.getScanner("formulas".getBytes, md5(assignment).getBytes);
+    var scanner = table.getScanner("formulas".getBytes, md5(getHBaseFormulaKey(assignment, instance_path)).getBytes);
     var formula = new Formula();
 
     try {
@@ -167,8 +204,7 @@ trait HBaseHelper extends SatLoggingUtils {
         //retrieve the default formula...
         HBaseHelper.synchronized {
           if (HBaseHelper.staticFormula == null) {
-            var defvalue = SatMapReduceConstants.HBASE_FORMULA_DEFAULT + "-" + instance_path
-              .split("/").last
+            var defvalue = getHBaseFormulaKey(SatMapReduceConstants.HBASE_FORMULA_DEFAULT, instance_path)
             var md5default = md5(defvalue)
             scanner = table.getScanner("formulas".getBytes, md5default.getBytes);
             val it = scanner.iterator()
@@ -179,7 +215,6 @@ trait HBaseHelper extends SatLoggingUtils {
               var cnfFormula = new String(it.next().value())
               HBaseHelper.staticFormula = new Formula()
               HBaseHelper.staticFormula.fromCNF(cnfFormula)
-              log.info(s"CUSTOM FORMULA FOUND!!! ${cnfFormula.toString}")
             }
           }
         }
@@ -202,9 +237,12 @@ trait HBaseHelper extends SatLoggingUtils {
     _ + _
   }
 
-  def saveToHBaseFormula(assignment: String, formula: Formula) = {
-    log.info(s"Saving formula for $assignment , md5=${md5(assignment)}")
-    var md5Key = md5(assignment)
+  private def getHBaseFormulaKey(assignment: String, instance_path: String) : String =
+    instance_path.split("/").last + "-" + assignment
+
+  def saveToHBaseFormula(assignment: String, formula: Formula, instance_path : String) = {
+    log.info(s"Saving formula for $assignment , md5=${md5(getHBaseFormulaKey(assignment, instance_path))}")
+    var md5Key = md5(getHBaseFormulaKey(assignment, instance_path))
     var put = new Put(md5Key.getBytes)
     put.add("formulas".getBytes, md5Key.getBytes, formula.toCNF.getBytes);
     table.put(put);
@@ -217,5 +255,42 @@ trait HBaseHelper extends SatLoggingUtils {
     log.trace(s"Key [$fixedLiterals] with value [$foundLiterals] saved...")
   }
 
+  protected def cleanup(instance_path : String) {
+    //delete existing output folders.
+    log.info("Deleting output folders...")
+    try {
+      val fs = FileSystem.get(new Configuration())
+      fs.delete(new Path("sat_tmp"), true);
+    } catch {
+      case e: Throwable => //do nothing in all cases.
+    }
+
+    //cleanup DB.
+    if (withHbase) {
+      log.info("Cleaning up database...")
+
+      var scann = table.getScanner("invalid_literals".getBytes, "a".getBytes)
+      cleanTableFamily(scann)
+
+      scann = table.getScanner("path".getBytes, "a".getBytes);
+      cleanTableFamily(scann)
+
+      scann = table.getScanner("formulas".getBytes);
+      cleanTableFamily(scann)
+
+      scann = table.getScanner("solution".getBytes, instance_path.split("/").last.getBytes);
+      cleanTableFamily(scann)
+
+      log.info("Finish cleaning up database...")
+
+    }
+  }
+
+  private def cleanTableFamily(scann: ResultScanner){
+    for (result: Result <- scann.asScala) {
+      var delete = new Delete(result.getRow);
+      table.delete(delete);
+    }
+  }
 
 }

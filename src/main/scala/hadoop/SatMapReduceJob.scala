@@ -3,6 +3,8 @@ package hadoop
 import java.util.Date
 import enums.EnumMRCounters
 import common.{SatMapReduceConstants, SatMapReduceHelper}
+import hadoop.SatMapReduceMain._
+import utils.HBaseHelper
 import utils._
 import org.apache.hadoop.conf.{Configuration, Configured}
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -36,7 +38,9 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
   def run(args: Array[String]): Int = {
 
     //retrieve problem partition file
-    if (args.size != 3) {
+    var arguments = parseArgs(args)
+
+    if (arguments == null){
       log.info(
         s"""
            |Wrong number of inputs. The app needs 2 parameters:
@@ -48,16 +52,17 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
       )
     } else {
 
+      startTime = System.currentTimeMillis();
+      instance_path = arguments._1
+      depth = arguments._2
+      numberOfMappers = arguments._3
+
       log.info("Starting mapreduce algorithm...")
       log.info("Cleaning previous information...")
       initHTable();
 
-      cleanup()
+      cleanup(instance_path)
 
-      startTime = System.currentTimeMillis();
-      instance_path = args(0)
-      depth = args(1).toInt
-      numberOfMappers = args(2).toInt
 
       var job: SatJob = createInitJob();
 
@@ -65,9 +70,11 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
       var end = false;
       while (finishedOk && !end) {
         log.info(s"#################################################################################################")
+        log.info(s"Retrieving soluton with value ${instance_path}")
         var solFound = retrieveSolution(instance_path)
-        if (solFound) {
+        if (solFound != null) {
           log.info(s"Solution found!, finishing algorithm....")
+          finishedOk= true;
           end = true;
         } else {
           log.info(s"#################################################################################################")
@@ -133,53 +140,13 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
   }
 
 
-  private def cleanup() {
-    //delete existing output folders.
-    log.info("Deleting output folders...")
-    try {
-      val fs = FileSystem.get(new Configuration())
-      fs.delete(new Path("sat_tmp"), true);
-    } catch {
-      case e: Throwable => //do nothing in all cases.
-    }
-
-    //cleanup DB.
-    if (withHbase) {
-      log.info("Cleaning up database...")
-
-      var scann = table.getScanner("invalid_literals".getBytes, "a".getBytes)
-      cleanTableFamily(scann)
-
-      scann = table.getScanner("path".getBytes, "a".getBytes);
-      cleanTableFamily(scann)
-
-      scann = table.getScanner("formulas".getBytes, "a".getBytes);
-      cleanTableFamily(scann)
-
-      scann = table.getScanner("solution".getBytes, "a".getBytes);
-      cleanTableFamily(scann)
-
-      log.info("Finish cleaning up database...")
-
-    }
-  }
-
-  private def cleanTableFamily(scann: ResultScanner){
-    for (result: Result <- scann.asScala) {
-      var delete = new Delete(result.getRow);
-      table.delete(delete);
-    }
-  }
-
   private def createInitJob(): SatJob = {
     var time = new Date()
     var input_path = SatMapReduceConstants.sat_tmp_folder_input + s"_${time.getTime}"
 
     var formula = SatReader.read3SatInstance(instance_path);
     //the first time, upload the default formula to HBASE
-    saveToHBaseFormula(
-      SatMapReduceConstants.HBASE_FORMULA_DEFAULT + "-" + instance_path
-      .split("/").last, formula)
+    saveToHBaseFormula(SatMapReduceConstants.HBASE_FORMULA_DEFAULT, formula, instance_path)
 
     numberOfLiterals = formula.n;
 
@@ -256,5 +223,53 @@ object SatMapReduceJob extends Configured with Tool with SatLoggingUtils with HB
     CacheHelper.putSatInstance(job, instance_path)
     return job
   }
+
+
+  /**
+   * Parses the input parameters
+   * @param args
+   * @return (input_path, depth, number_of_mappers, iterations)
+   */
+  def parseArgs(args: Array[String]): (String, Int, Int, Int) ={
+
+    var instance_path="";
+    var depth=1
+    var numberOfMappers= 10
+    var problem_iterations = 1
+
+    //retrieve problem partition file
+    for(a <- args){
+      var param = a.split("=");
+      if (param.size > 1){
+        param.apply(0) match {
+          case "input_path" => {instance_path = param.apply(1)}
+          case "depth" => {depth = param.apply(1).toInt}
+          case "mappers" => {numberOfMappers = param.apply(1).toInt}
+          case "iterations" => {problem_iterations = param.apply(1).toInt}
+        }
+      }
+    }
+
+    if (instance_path.isEmpty ||
+      depth < 0 ||
+      numberOfMappers < 0){
+      log.info(
+        s"""
+           |Wrong number of inputs.
+           |Valid parameters:
+           |input_path=file_path
+           |depth=depth_to_use_in_the_DFS_algorithm
+           |mappers=number_of_mappers_to_use
+           |iterations=number_of_times_to_run
+         """.stripMargin
+      )
+      return null;
+    }
+
+    return (instance_path, depth, numberOfMappers, problem_iterations)
+  }
+
+
+
 
 }
