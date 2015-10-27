@@ -1,6 +1,7 @@
 MapReduce implementation for kSAT problem.
 =============
 
+#### Missing a proper readme file
 
 The algorithm first will be developed to run in hadoop 1.0.4 but
 would be nice to afterwards compare the algorithm with spark.
