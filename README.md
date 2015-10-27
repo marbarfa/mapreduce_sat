@@ -1,13 +1,10 @@
 MapReduce implementation for kSAT problem.
 =============
 
-#### Missing a proper readme file...
-
-The algorithm first will be developed to run in hadoop 1.0.4 but
-would be nice to afterwards compare the algorithm with spark.
 
 The general idea of the algorithm is described below:
 
+# Deterministic MapReduce implementation
 
 The first implementation is a simple approach to evaluate its performance and then maybe improve the algorithm adding some heuristics, etc.
 
@@ -41,3 +38,4 @@ The search tree would be something like the following, for this simple example:
                    |           |             |            |
                  ||||        ||||          ||||         ||||
 
+# Randomized MapReduce Implementation
