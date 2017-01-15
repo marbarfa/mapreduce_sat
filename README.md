@@ -1,6 +1,7 @@
 MapReduce implementation for kSAT problem.
 =============
 
+Must Be Updated, for better documentation see [this paper](https://drive.google.com/open?id=0B8ncxDQmqynUV0dwVEpDWHBtb3M).
 
 The general idea of the algorithm is described below:
 
